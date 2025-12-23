@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estoque Oficial - Elétrica App</title>
+    <style>
+        :root {
+            --bg: #e5e7eb; --card-bg: #f8fafc; --primary: #2563eb;
+            --text: #0f172a; --muted: #475569; --border: #cbd5e1; 
+            --success: #16a34a; --warning: #f59e0b; --danger: #ef4444;
+        }
+        
+        body { margin: 0; padding-top: 80px; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
+        
+        /* Navbar */
+        .navbar { 
+            position: fixed; top: 0; width: 100%; height: 60px; background: white; 
+            border-bottom: 1px solid var(--border); display: flex; align-items: center; 
+            justify-content: space-between; padding: 0 2rem; z-index: 1000; box-sizing: border-box; 
+        }
+
+        .container { max-width: 1200px; margin: auto; padding: 0 1rem; }
+        
+        .card { 
+            background: var(--card-bg); padding: 1.5rem; border-radius: 16px; 
+            border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+        }
+
+        /* Tabela e Busca */
+        input#inputBusca { 
+            width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); 
+            margin-bottom: 15px; font-size: 1rem; outline: none;
+        }
+        input#inputBusca:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1); }
+
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 900px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.85rem; }
+        th { background: #f1f5f9; color: var(--muted); text-transform: uppercase; font-weight: 700; }
+        
+        .valor-cell { font-weight: bold; color: var(--success); }
+
+        /* Ações (Botões lado a lado) */
+        .actions { display: flex; gap: 12px; }
+        .btn-action { 
+            cursor: pointer; background: none; border: none; font-size: 1.2rem; 
+            padding: 5px; transition: transform 0.2s; 
+        }
+        .btn-action:hover { transform: scale(1.2); }
+        .btn-edit { color: var(--warning); }
+        .btn-del { color: var(--danger); }
+
+        /* Modal de Edição */
+        #modalEdicao {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: white; padding: 25px; border-radius: 15px; width: 95%; max-width: 450px;
+            display: flex; flex-direction: column; gap: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .modal-content h3 { margin: 0 0 10px 0; color: var(--primary); font-size: 1.2rem; }
+        .modal-content label { font-size: 0.8rem; font-weight: bold; color: var(--muted); }
+        .modal-content input { padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; }
+        
+        .modal-btns { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-save { background: var(--primary); color: white; border: none; padding: 12px; flex: 2; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-cancel { background: #e2e8f0; color: var(--text); border: none; padding: 12px; flex: 1; border-radius: 8px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div style="font-weight: 800; color: var(--primary); font-size: 1.2rem;">⚡ ELÉTRICA APP</div>
+    <a href="../principal.html" style="text-decoration:none; color: var(--muted); font-weight: 600;">⬅ VOLTAR</a>
+</nav>
+
+<div class="container">
+    <div class="card">
+        <h2 style="margin-top:0; color: var(--primary); font-size: 1.1rem; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px;">
+            📋 PRODUTOS EM ESTOQUE (CONCLUÍDOS)
+        </h2>
+        
+        <input type="text" id="inputBusca" placeholder="🔍 Pesquisar por Material, Código ou Fornecedor...">
+        
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Material</th>
+                        <th>Fornecedor</th>
+                        <th>Local</th>
+                        <th>Valor</th>
+                        <th style="width: 100px; text-align: center;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="corpoTabela">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="modalEdicao">
+    <div class="modal-content">
+        <h3>Editar Material</h3>
+        <input type="hidden" id="editId">
+        
+        <label>Nome do Material</label>
+        <input type="text" id="editNome">
+        
+        <label>Código</label>
+        <input type="text" id="editCodigo">
+        
+        <label>Fornecedor</label>
+        <input type="text" id="editFornecedor">
+        
+        <label>Local de Uso</label>
+        <input type="text" id="editLocal">
+        
+        <label>Valor (R$)</label>
+        <input type="number" step="0.01" id="editValor">
+        
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+            <button class="btn-save" onclick="salvarAlteracao()">Salvar Alterações</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, query, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyB_w4-z_onAEUf10ROfYCmvnm6Fkkp2sYo",
+        authDomain: "eletrica-8c96e.firebaseapp.com",
+        projectId: "eletrica-8c96e",
+        storageBucket: "eletrica-8c96e.firebasestorage.app",
+        messagingSenderId: "456815528430",
+        appId: "1:456815528430:web:4cf873dc8071c9a2bbe6ff"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    
+    let produtosLocal = [];
+    const corpoTabela = document.getElementById('corpoTabela');
+
+    // --- FUNÇÕES DE INTERFACE ---
+    window.abrirEdicao = (id) => {
+        const item = produtosLocal.find(p => p.id === id);
+        if (item) {
+            document.getElementById('editId').value = id;
+            document.getElementById('editNome').value = item.nome || '';
+            document.getElementById('editCodigo').value = item.codigo || '';
+            document.getElementById('editFornecedor').value = item.fornecedor || '';
+            document.getElementById('editLocal').value = item.localUso || '';
+            document.getElementById('editValor').value = item.valor || 0;
+            document.getElementById('modalEdicao').style.display = 'flex';
+        }
+    };
+
+    window.fecharModal = () => {
+        document.getElementById('modalEdicao').style.display = 'none';
+    };
+
+    // --- FUNÇÕES DE BANCO DE DADOS ---
+    window.salvarAlteracao = async () => {
+        const id = document.getElementById('editId').value;
+        const ref = doc(db, "produtos", id);
+        
+        const novosDados = {
+            nome: document.getElementById('editNome').value,
+            codigo: document.getElementById('editCodigo').value,
+            fornecedor: document.getElementById('editFornecedor').value,
+            localUso: document.getElementById('editLocal').value,
+            valor: parseFloat(document.getElementById('editValor').value) || 0,
+            ultimaEdicao: new Date()
+        };
+
+        try {
+            await updateDoc(ref, novosDados);
+            alert("✅ Atualizado com sucesso!");
+            fecharModal();
+        } catch (e) {
+            alert("Erro ao atualizar!");
+        }
+    };
+
+    window.excluirItem = async (id) => {
+        if (confirm("Tem certeza que deseja excluir este item permanentemente do banco oficial?")) {
+            await deleteDoc(doc(db, "produtos", id));
+        }
+    };
+
+    // --- ESCUTA EM TEMPO REAL ---
+    onSnapshot(query(collection(db, "produtos")), (snapshot) => {
+        produtosLocal = [];
+        corpoTabela.innerHTML = "";
+        
+        if (snapshot.empty) {
+            corpoTabela.innerHTML = "<tr><td colspan='6' style='text-align:center'>O estoque está vazio.</td></tr>";
+        }
+
+        snapshot.forEach(d => {
+            const p = { id: d.id, ...d.data() };
+            produtosLocal.push(p);
+        });
+        
+        renderizar(produtosLocal);
+    });
+
+    function renderizar(lista) {
+        corpoTabela.innerHTML = "";
+        lista.forEach(p => {
+            corpoTabela.innerHTML += `
+                <tr>
+                    <td><strong>${p.codigo || '---'}</strong></td>
+                    <td>${p.nome}</td>
+                    <td>${p.fornecedor || '---'}</td>
+                    <td>${p.localUso || '---'}</td>
+                    <td class="valor-cell">R$ ${Number(p.valor || 0).toFixed(2)}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn-action btn-edit" onclick="abrirEdicao('${p.id}')" title="Editar">✏️</button>
+                            <button class="btn-action btn-del" onclick="excluirItem('${p.id}')" title="Excluir">🗑️</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    // Filtro de Busca
+    document.getElementById('inputBusca').addEventListener('input', (e) => {
+        const termo = e.target.value.toLowerCase();
+        const filtrados = produtosLocal.filter(p => 
+            p.nome.toLowerCase().includes(termo) || 
+            (p.codigo && p.codigo.toLowerCase().includes(termo)) ||
+            (p.fornecedor && p.fornecedor.toLowerCase().includes(termo))
+        );
+        renderizar(filtrados);
+    });
+</script>
+
+</body>
+</html>
