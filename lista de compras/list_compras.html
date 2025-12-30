@@ -52,11 +52,6 @@
                         <option value="2026">2026</option>
                         <option value="2027">2027</option>
                         <option value="2028">2028</option>
-                        <option value="2029">2029</option>
-                        <option value="2030">2030</option>
-                        <option value="2031">2031</option>
-                        <option value="2032">2032</option>
-
                     </select>
                 </div>
             </div>
@@ -139,7 +134,6 @@
         };
 
         async function salvarMetaNoBanco() {
-            // Salva a meta dentro do documento do mês atual
             await setDoc(doc(db, "listas_mensais", periodoId), { 
                 itens: carrinhoAtual,
                 meta: valorLimiteDesteMes 
@@ -156,7 +150,6 @@
             onSnapshot(doc(db, "listas_mensais", periodoId), (docSnap) => {
                 if (docSnap.exists()) {
                     carrinhoAtual = docSnap.data().itens || [];
-                    // Se o mês tiver uma meta salva, usa ela. Se não, usa 200.000
                     valorLimiteDesteMes = docSnap.data().meta !== undefined ? docSnap.data().meta : 200000;
                 } else {
                     carrinhoAtual = [];
@@ -169,24 +162,37 @@
                 }
                 
                 renderizarCarrinho();
+                // Atualiza a busca se houver algo digitado para refletir os botões "Adicionar/Remover"
+                monitorarBusca(document.getElementById('inputBusca').value);
             });
         };
 
         window.monitorarBusca = (termo) => {
             const lista = document.getElementById('listaSugestoes');
             if (termo.length < 2) { lista.innerHTML = ""; return; }
-            const filtrados = todosProdutos.filter(p => (p.codigo && String(p.codigo).includes(termo)) || (p.nome && p.nome.toLowerCase().includes(termo.toLowerCase())));
+            
+            const filtrados = todosProdutos.filter(p => 
+                (p.codigo && String(p.codigo).includes(termo)) || 
+                (p.nome && p.nome.toLowerCase().includes(termo.toLowerCase()))
+            );
+
             lista.innerHTML = filtrados.map(p => {
-                const jaEsta = carrinhoAtual.some(item => item.id === p.id);
+                // VERIFICAÇÃO SE O ITEM JÁ ESTÁ NO CARRINHO
+                const jaEstaNoCarrinho = carrinhoAtual.some(item => item.id === p.id);
+                
                 return `
                 <div class="p-4 border rounded-2xl bg-white shadow-sm border-slate-100 flex flex-col gap-2 transition-all hover:border-blue-200">
                     <p class="font-bold text-slate-800 text-sm leading-tight">${p.nome}</p>
                     <p class="text-[10px] text-slate-400 font-mono font-bold uppercase tracking-tighter">Cód: ${p.codigo} | Unit: R$ ${p.valor}</p>
                     <div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-50">
                         <input type="number" id="qtd-${p.id}" value="1" min="1" class="w-16 p-2 bg-slate-100 border rounded-lg text-sm font-bold text-center outline-none">
-                        <button onclick="${jaEsta ? `remover('${p.id}')` : `adicionar('${p.id}')`}" 
-                            class="flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${jaEsta ? 'bg-red-50 text-red-500' : 'bg-blue-600 text-white shadow-md shadow-blue-100'}">
-                            ${jaEsta ? 'REMOVER' : 'ADICIONAR'}
+                        
+                        <button onclick="${jaEstaNoCarrinho ? `remover('${p.id}')` : `adicionar('${p.id}')`}" 
+                            class="flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-md 
+                            ${jaEstaNoCarrinho 
+                                ? 'bg-red-100 text-red-600 border border-red-200 hover:bg-red-200' 
+                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'}">
+                            ${jaEstaNoCarrinho ? '✕ Remover' : '＋ Adicionar'}
                         </button>
                     </div>
                 </div>`;
@@ -247,7 +253,7 @@
                     <div><p class="text-sm font-bold text-slate-700 leading-tight">${p.nome}</p>
                     <p class="text-[10px] text-slate-400 font-black uppercase mt-1 tracking-tight">${p.quantidade} un x R$ ${p.valor}</p></div>
                     <div class="flex items-center gap-6"><span class="text-sm font-black text-slate-800 tracking-tighter">R$ ${totalLinha.toFixed(2).replace('.',',')}</span>
-                    <button onclick="remover('${p.id}')" class="text-slate-200 hover:text-red-500">✕</button></div>
+                    <button onclick="remover('${p.id}')" class="text-slate-200 hover:text-red-500 font-bold text-lg">✕</button></div>
                 </li>`;
             }).join('');
             document.getElementById('totalPreco').innerText = `R$ ${somaTotalGlobal.toLocaleString('pt-br', { minimumFractionDigits: 2 })}`;

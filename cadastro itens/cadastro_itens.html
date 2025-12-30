@@ -30,7 +30,7 @@
             border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 30px; 
         }
         
-        form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+        form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
         .field { display: flex; flex-direction: column; gap: 5px; }
         label { font-size: 0.8rem; font-weight: bold; color: #666; }
         input, select { padding: 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.9rem; }
@@ -46,7 +46,7 @@
             overflow: hidden; margin-bottom: 50px;
         }
         .table-scroll { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 1000px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 800px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; white-space: nowrap; }
         th { background: #f9fafb; color: #666; font-weight: 600; }
         
@@ -80,16 +80,8 @@
                 <input type="text" id="codigo" placeholder="Obrigatório para concluir">
             </div>
             <div class="field">
-                <label>Fornecedor</label>
-                <input type="text" id="fornecedor">
-            </div>
-            <div class="field">
                 <label>Local de Uso</label>
                 <input type="text" id="localUso">
-            </div>
-            <div class="field">
-                <label>Função</label>
-                <input type="text" id="funcao">
             </div>
             <div class="field">
                 <label>Valor (R$)</label>
@@ -117,15 +109,12 @@
                         <th>Status</th>
                         <th>Material</th>
                         <th>Código</th>
-                        <th>Fornecedor</th>
                         <th>Local de Uso</th>
-                        <th>Função</th>
                         <th>Valor</th>
                         <th style="text-align: center;">Ações</th>
                     </tr>
                 </thead>
-                <tbody id="corpoTabela">
-                    </tbody>
+                <tbody id="corpoTabela"></tbody>
             </table>
         </div>
     </div>
@@ -147,12 +136,10 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // Proteção contra o erro 'null' - Executa após carregar o HTML
     document.addEventListener('DOMContentLoaded', () => {
         const form = document.getElementById('produtoForm');
         const corpoTabela = document.getElementById('corpoTabela');
 
-        // SALVAR OU ATUALIZAR
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -164,9 +151,7 @@
             const dados = {
                 nome: document.getElementById('nome').value,
                 codigo: codigo || "",
-                fornecedor: document.getElementById('fornecedor').value || "",
                 localUso: document.getElementById('localUso').value || "",
-                funcao: document.getElementById('funcao').value || "",
                 valor: parseFloat(valor) || 0,
                 status: status,
                 atualizadoEm: new Date()
@@ -174,23 +159,17 @@
 
             try {
                 if (status === "concluido") {
-                    // Validação para o Banco Oficial
                     if (!codigo || !valor || valor <= 0) {
                         alert("⚠️ Atenção: Código e Valor são obrigatórios para concluir o cadastro!");
                         return;
                     }
-
-                    // 1. Move para a coleção oficial 'produtos'
                     await addDoc(collection(db, "produtos"), { ...dados, dataFinalizado: new Date() });
-
-                    // 2. Remove da coleção de pendentes se existir
                     if (editId) {
                         await deleteDoc(doc(db, "produtos_pendentes", editId));
                     }
                     alert("✅ Item finalizado e movido para o estoque oficial!");
                 } 
                 else {
-                    // Mantém na coleção 'produtos_pendentes'
                     if (editId) {
                         await updateDoc(doc(db, "produtos_pendentes", editId), dados);
                         alert("💾 Rascunho atualizado com sucesso.");
@@ -199,7 +178,6 @@
                         alert("💾 Novo rascunho salvo.");
                     }
                 }
-                
                 form.reset();
                 document.getElementById('editId').value = "";
             } catch (err) {
@@ -208,7 +186,6 @@
             }
         });
 
-        // LISTAR PENDENTES EM TEMPO REAL
         const q = query(collection(db, "produtos_pendentes"), orderBy("atualizadoEm", "desc"));
         onSnapshot(q, (snapshot) => {
             corpoTabela.innerHTML = "";
@@ -221,12 +198,10 @@
                         <td><span class="badge st-${item.status}">${item.status.toUpperCase()}</span></td>
                         <td><strong>${item.nome}</strong></td>
                         <td>${item.codigo || '---'}</td>
-                        <td>${item.fornecedor || '---'}</td>
                         <td>${item.localUso || '---'}</td>
-                        <td>${item.funcao || '---'}</td>
                         <td class="valor-cell">R$ ${item.valor.toFixed(2)}</td>
                         <td style="text-align: center;">
-                            <button class="btn-action" onclick="prepararEdicao('${id}', \`${item.nome}\`, '${item.codigo}', '${item.fornecedor}', '${item.localUso}', '${item.funcao}', '${item.valor}', '${item.status}')" title="Editar">✏️</button>
+                            <button class="btn-action" onclick="prepararEdicao('${id}', \`${item.nome}\`, '${item.codigo}', '${item.localUso}', '${item.valor}', '${item.status}')" title="Editar">✏️</button>
                             <button class="btn-action" onclick="deletarPendente('${id}')" title="Excluir">🗑️</button>
                         </td>
                     </tr>
@@ -235,14 +210,11 @@
         });
     });
 
-    // Funções Globais (Acessíveis pelos botões da tabela)
-    window.prepararEdicao = (id, nome, cod, forn, loc, func, val, stat) => {
+    window.prepararEdicao = (id, nome, cod, loc, val, stat) => {
         document.getElementById('editId').value = id;
         document.getElementById('nome').value = nome;
         document.getElementById('codigo').value = cod || '';
-        document.getElementById('fornecedor').value = forn || '';
         document.getElementById('localUso').value = loc || '';
-        document.getElementById('funcao').value = func || '';
         document.getElementById('valor').value = val;
         document.getElementById('status').value = stat;
         window.scrollTo({ top: 0, behavior: 'smooth' });
