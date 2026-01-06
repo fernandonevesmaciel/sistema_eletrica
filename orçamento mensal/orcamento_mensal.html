@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,43 +8,96 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    
+
     <style>
-        :root { --primary: #3b82f6; }
-        .navbar { position: fixed; top: 0; left: 0; width: 100%; height: 64px; background: white; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; box-sizing: border-box; z-index: 1000; }
-        body { padding-top: 85px; background: #f8fafc; }
-        .positivo { color: #10b981 !important; } 
-        .negativo { color: #ef4444 !important; } 
-        .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        :root {
+            --primary: #3b82f6;
+        }
+
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 64px;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            box-sizing: border-box;
+            z-index: 1000;
+        }
+
+        body {
+            padding-top: 85px;
+            background: #f8fafc;
+        }
+
+        .positivo {
+            color: #10b981 !important;
+        }
+
+        .negativo {
+            color: #ef4444 !important;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
     </style>
 </head>
+
 <body>
 
     <nav class="navbar shadow-sm">
         <div class="flex items-center gap-2" style="font-weight: 800; color: var(--primary); font-size: 1.25rem;">
             <span>⚡</span> ELÉTRICA APP
         </div>
-        <a href="../principal.html" class="text-slate-500 hover:text-blue-600 font-semibold text-sm transition-colors tracking-tighter">Voltar ao Início</a>
+        <a href="../principal.html"
+            class="text-slate-500 hover:text-blue-600 font-semibold text-sm transition-colors tracking-tighter">Voltar
+            ao Início</a>
     </nav>
 
     <div class="max-w-5xl mx-auto px-4">
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div
+            class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-xl font-black text-slate-800 uppercase tracking-tight">Análise Mensal</h1>
                 <p class="text-[10px] text-slate-400 font-bold uppercase">Gestão de Saldo e Gastos</p>
             </div>
-            
+
             <div class="flex items-center gap-3">
                 <div class="flex gap-2 bg-slate-100 p-2 rounded-xl border">
-                    <select id="selectMes" onchange="carregarOrcamento()" class="bg-transparent font-bold text-slate-700 outline-none">
-                        <option value="01">Janeiro</option><option value="02">Fevereiro</option><option value="03">Março</option><option value="04">Abril</option><option value="05">Maio</option><option value="06">Junho</option><option value="07">Julho</option><option value="08">Agosto</option><option value="09">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+                    <select id="selectMes" onchange="carregarOrcamento()"
+                        class="bg-transparent font-bold text-slate-700 outline-none">
+                        <option value="01">Janeiro</option>
+                        <option value="02">Fevereiro</option>
+                        <option value="03">Março</option>
+                        <option value="04">Abril</option>
+                        <option value="05">Maio</option>
+                        <option value="06">Junho</option>
+                        <option value="07">Julho</option>
+                        <option value="08">Agosto</option>
+                        <option value="09">Setembro</option>
+                        <option value="10">Outubro</option>
+                        <option value="11">Novembro</option>
+                        <option value="12">Dezembro</option>
                     </select>
-                    <select id="selectAno" onchange="carregarOrcamento()" class="bg-transparent font-bold text-slate-700 outline-none">
-                        <option value="2025">2025</option><option value="2026">2026</option>
+                    <select id="selectAno" onchange="carregarOrcamento()"
+                        class="bg-transparent font-bold text-slate-700 outline-none">
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
                     </select>
                 </div>
-                <button onclick="gerarPdfDashboard()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-lg transition-all uppercase tracking-widest">
+                <button onclick="gerarPdfDashboard()"
+                    class="bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-lg transition-all uppercase tracking-widest">
                     Exportar PDF
                 </button>
             </div>
@@ -65,7 +119,8 @@
         </div>
 
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div class="bg-slate-800 p-4 text-white text-[10px] font-bold uppercase tracking-[0.2em] flex justify-between">
+            <div
+                class="bg-slate-800 p-4 text-white text-[10px] font-bold uppercase tracking-[0.2em] flex justify-between">
                 <span>Detalhamento de Itens</span>
                 <span id="periodoTexto">---</span>
             </div>
@@ -75,7 +130,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB_w4-z_onAEUf10ROfYCmvnm6Fkkp2sYo",
@@ -92,29 +147,38 @@
         let limiteGlobal = 0;
         let gastosGlobais = 0;
         let itensAtuais = [];
+        let unsub = null; // Para limpar o monitoramento anterior ao trocar de mês
 
         async function init() {
             const d = new Date();
             document.getElementById('selectMes').value = String(d.getMonth() + 1).padStart(2, '0');
             document.getElementById('selectAno').value = d.getFullYear();
 
-            onSnapshot(doc(db, "configuracoes", "orcamento"), (docSnap) => {
-                limiteGlobal = docSnap.exists() ? docSnap.data().valor : 200000;
-                carregarOrcamento();
-            });
+            carregarOrcamento();
         }
 
-        window.carregarOrcamento = async () => {
+        window.carregarOrcamento = () => {
             const mes = document.getElementById('selectMes').value;
             const ano = document.getElementById('selectAno').value;
             const periodoId = `${mes}-${ano}`;
             const mesNome = document.getElementById('selectMes').options[document.getElementById('selectMes').selectedIndex].text;
             document.getElementById('periodoTexto').innerText = `${mesNome} / ${ano}`;
 
-            const docRef = doc(db, "listas_mensais", periodoId);
-            const docSnap = await getDoc(docRef);
-            itensAtuais = docSnap.exists() ? (docSnap.data().itens || []) : [];
-            renderizarDashboard(itensAtuais);
+            // Se já houver um monitoramento ativo, cancela ele antes de começar o novo mês
+            if (unsub) unsub();
+
+            // Escuta em TEMPO REAL o documento do mês selecionado
+            unsub = onSnapshot(doc(db, "listas_mensais", periodoId), (docSnap) => {
+                if (docSnap.exists()) {
+                    const dados = docSnap.data();
+                    itensAtuais = dados.itens || [];
+                    limiteGlobal = dados.meta || 0;
+                } else {
+                    itensAtuais = [];
+                    limiteGlobal = 0;
+                }
+                renderizarDashboard(itensAtuais);
+            });
         };
 
         function renderizarDashboard(itens) {
@@ -128,11 +192,11 @@
                     const sub = (Number(p.valor) || 0) * (p.quantidade || 1);
                     gastosGlobais += sub;
                     return `
-                    <li class="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
-                        <div><p class="text-sm font-bold text-slate-700 leading-tight">${p.nome}</p>
-                        <p class="text-[10px] text-slate-400 font-black uppercase mt-1">${p.quantidade} un x R$ ${p.valor}</p></div>
-                        <span class="text-sm font-black text-slate-800">R$ ${sub.toFixed(2).replace('.',',')}</span>
-                    </li>`;
+                <li class="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                    <div><p class="text-sm font-bold text-slate-700 leading-tight">${p.nome}</p>
+                    <p class="text-[10px] text-slate-400 font-black uppercase mt-1">${p.quantidade} un x R$ ${p.valor}</p></div>
+                    <span class="text-sm font-black text-slate-800">R$ ${sub.toFixed(2).replace('.', ',')}</span>
+                </li>`;
                 }).join('');
             }
 
@@ -142,7 +206,7 @@
             document.getElementById('cardMeta').innerText = limiteGlobal.toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
             document.getElementById('cardGasto').innerText = gastosGlobais.toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
             saldoUI.innerText = saldo.toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
-            
+
             saldoUI.className = "text-2xl font-black " + (saldo >= 0 ? "positivo" : "negativo");
         }
 
@@ -158,16 +222,16 @@
             docPdf.text("RELATÓRIO FINANCEIRO MENSAL", 14, 20);
             docPdf.setFontSize(12);
             docPdf.text(`Período: ${mes} / ${ano}`, 14, 28);
-            docPdf.text(`Meta Orçamentária: R$ ${limiteGlobal.toFixed(2).replace('.',',')}`, 14, 34);
-            docPdf.text(`Gasto Total: R$ ${gastosGlobais.toFixed(2).replace('.',',')}`, 14, 40);
-            
+            docPdf.text(`Meta Orçamentária: R$ ${limiteGlobal.toFixed(2).replace('.', ',')}`, 14, 34);
+            docPdf.text(`Gasto Total: R$ ${gastosGlobais.toFixed(2).replace('.', ',')}`, 14, 40);
+
             const saldo = limiteGlobal - gastosGlobais;
             docPdf.setTextColor(saldo >= 0 ? 16 : 239, saldo >= 0 ? 185 : 68, saldo >= 0 ? 129 : 68);
-            docPdf.text(`SALDO FINAL: R$ ${saldo.toFixed(2).replace('.',',')}`, 14, 46);
+            docPdf.text(`SALDO FINAL: R$ ${saldo.toFixed(2).replace('.', ',')}`, 14, 46);
             docPdf.setTextColor(0, 0, 0);
 
             const body = itensAtuais.map(p => [
-                p.nome, p.quantidade, `R$ ${p.valor}`, `R$ ${((Number(p.valor)||0)*p.quantidade).toFixed(2).replace('.',',')}`
+                p.nome, p.quantidade, `R$ ${p.valor}`, `R$ ${((Number(p.valor) || 0) * p.quantidade).toFixed(2).replace('.', ',')}`
             ]);
 
             docPdf.autoTable({
@@ -184,4 +248,5 @@
         init();
     </script>
 </body>
+
 </html>
