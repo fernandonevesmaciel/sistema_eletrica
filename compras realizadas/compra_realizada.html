@@ -30,11 +30,11 @@
 </head>
 <body class="pt-24 pb-12 px-4">
 
-    <nav class="navbar">
-        <div class="flex items-center gap-2" style="font-weight: 800; color: #2563eb; font-size: 1.25rem;"><span>⚡</span> ELÉTRICA APP</div>
-        <a href="../principal.html" class="text-slate-500 hover:text-blue-600 font-bold text-sm tracking-tight uppercase">Voltar ao Início</a>
+    <nav class="navbar shadow-sm">
+        <div class="flex items-center gap-2" style="font-weight: 800; color: var(--primary); font-size: 1.25rem;"><span>⚡</span> ELÉTRICA APP</div>
+        <a href="../principal.html" class="text-slate-500 hover:text-blue-600 font-semibold text-sm transition-colors tracking-tighter uppercase">Voltar ao Início</a>
     </nav>
-
+    
     <div class="max-w-5xl mx-auto">
         <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
@@ -43,7 +43,7 @@
             </div>
 
             <div class="flex flex-wrap gap-2">
-                <input type="text" id="inputBusca" placeholder="Buscar nome ou código..." class="filter-control w-full md:w-64">
+                <input type="text" id="inputBusca" placeholder="Buscar nome, código ou nimbi..." class="filter-control w-full md:w-64">
                 <select id="filtroStatus" class="filter-control">
                     <option value="todos">Todos os Status</option>
                     <option value="solicitacao">Solicitação</option>
@@ -66,12 +66,13 @@
         import { getFirestore, collection, doc, updateDoc, deleteDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyB_w4-z_onAEUf10ROfYCmvnm6Fkkp2sYo",
-            authDomain: "eletrica-8c96e.firebaseapp.com",
-            projectId: "eletrica-8c96e",
-            storageBucket: "eletrica-8c96e.firebasestorage.app",
-            messagingSenderId: "456815528430",
-            appId: "1:456815528430:web:4cf873dc8071c9a2bbe6ff"
+            apiKey: "AIzaSyAwBdNKVmujXM-icPXZllCYw4ED6ugSEK0",
+            authDomain: "mecanica-699bb.firebaseapp.com",
+            projectId: "mecanica-699bb",
+            storageBucket: "mecanica-699bb.firebasestorage.app",
+            messagingSenderId: "223675812288",
+            appId: "1:223675812288:web:f91f3dab6705fa7a2aa025",
+            measurementId: "G-G78PR55F9F"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -89,9 +90,11 @@
             const filtrados = todosRegistros.filter(item => {
                 const nome = item.nome?.toLowerCase() || "";
                 const codigo = item.codigo?.toLowerCase() || "";
+                // ALTERADO: agora busca por 'codigoNimbi'
+                const nimbi = item.codigoNimbi?.toLowerCase() || "";
                 const status = item.status || "";
                 
-                const matchesBusca = nome.includes(busca) || codigo.includes(busca);
+                const matchesBusca = nome.includes(busca) || codigo.includes(busca) || nimbi.includes(busca);
                 const matchesStatus = statusFiltro === "todos" || status === statusFiltro;
 
                 return matchesBusca && matchesStatus;
@@ -105,12 +108,20 @@
             container.innerHTML = "";
             filtrados.forEach(item => {
                 const statusClass = `status-${item.status}`;
+                
+                // ALTERADO: Lógica para exibir o Nimbi apenas se ele existir
+                const nimbiDisplay = item.codigoNimbi 
+                    ? `<span class="text-purple-500 ml-2">| Nimbi: ${item.codigoNimbi}</span>` 
+                    : '';
+
                 const card = document.createElement('div');
                 card.className = 'compra-card p-5';
                 card.innerHTML = `
                     <div class="flex flex-wrap justify-between items-start gap-4 mb-4">
                         <div class="flex-1 min-w-[200px]">
-                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Cód: ${item.codigo || 'S/C'}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                                Cód: ${item.codigo || 'S/C'} ${nimbiDisplay}
+                            </div>
                             <h3 class="text-lg font-bold text-slate-800 leading-tight">${item.nome}</h3>
                             <div class="text-[11px] font-bold text-blue-500 uppercase mt-1">${item.local || 'Geral'}</div>
                         </div>
