@@ -10,6 +10,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
+    <!-- Biblioteca para gerar EXCEL -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <style>
         :root { --primary: #2563eb; --bg: #f8fafc; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); }
@@ -58,16 +61,20 @@
                     <button onclick="window.gerarPDF()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors shadow-sm flex items-center gap-2">
                         📄 Baixar PDF
                     </button>
+                    <!-- NOVO BOTÃO EXCEL -->
+                    <button onclick="window.gerarExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors shadow-sm flex items-center gap-2">
+                        📊 Baixar Planilha
+                    </button>
                 </div>
 
                 <div class="h-8 w-px bg-slate-200 hidden md:block"></div>
 
-                <!-- FILTRO DE DATA PREVISÃO -->
+                <!-- FILTRO DE DATA DESEJADA -->
                 <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
-                    <span class="text-xs font-bold text-slate-500 uppercase tracking-tight">Previsão:</span>
-                    <input type="date" id="filtroDataInicio" class="text-sm border-none outline-none bg-transparent text-slate-700 cursor-pointer">
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-tight">Desejada:</span>
+                    <input type="date" id="filtroDataInicio" class="text-sm border-none outline-none bg-transparent text-slate-700 cursor-pointer focus:text-blue-600 transition-colors">
                     <span class="text-xs font-bold text-slate-400">até</span>
-                    <input type="date" id="filtroDataFim" class="text-sm border-none outline-none bg-transparent text-slate-700 cursor-pointer">
+                    <input type="date" id="filtroDataFim" class="text-sm border-none outline-none bg-transparent text-slate-700 cursor-pointer focus:text-blue-600 transition-colors">
                 </div>
 
                 <!-- BUSCA E STATUS -->
@@ -95,6 +102,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, doc, updateDoc, deleteDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+        // CREDENCIAIS DA ELÉTRICA
         const firebaseConfig = {
             apiKey: "AIzaSyB_w4-z_onAEUf10ROfYCmvnm6Fkkp2sYo",
             authDomain: "eletrica-8c96e.firebaseapp.com",
@@ -135,14 +143,14 @@
                     status === statusFiltro ||
                     (statusFiltro === "pendentes" && (status === "pedido" || status === "parcial"));
 
-                // Filtro de Data de Previsão
+                // Filtro de Data Desejada
                 let matchesData = true;
                 if (dInicio || dFim) {
-                    if (!item.dataPrevisao) {
+                    if (!item.dataDesejada) {
                         matchesData = false; // Se o usuário filtrou por data, ignorar quem não tem data
                     } else {
-                        if (dInicio && item.dataPrevisao < dInicio) matchesData = false;
-                        if (dFim && item.dataPrevisao > dFim) matchesData = false;
+                        if (dInicio && item.dataDesejada < dInicio) matchesData = false;
+                        if (dFim && item.dataDesejada > dFim) matchesData = false;
                     }
                 }
 
@@ -196,7 +204,7 @@
                             <div class="text-[11px] font-bold text-blue-500 uppercase mt-1">${item.local || 'Geral'}</div>
                         </div>
                         
-                        <!-- GRID ATUALIZADO: Agora com 4 colunas (Qtd, Total, Data Prevista, Status) -->
+                        <!-- GRID ATUALIZADO: Apenas com Data Desejada -->
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center items-center">
                             <div>
                                 <div class="text-[9px] font-black text-slate-300 uppercase">Qtd</div>
@@ -207,11 +215,11 @@
                                 <div class="font-bold text-green-600">R$ ${parseFloat(item.valorTotal || 0).toFixed(2)}</div>
                             </div>
                             
-                            <!-- NOVO CAMPO: Data Prevista -->
+                            <!-- CAMPO: Data Desejada -->
                             <div class="bg-slate-50 p-1.5 rounded border border-slate-100">
-                                <div class="text-[9px] font-black text-blue-400 uppercase">Previsão</div>
-                                <input type="date" value="${item.dataPrevisao || ''}" 
-                                    onchange="window.atualizarDataPrevisao('${item.id}', this.value)" 
+                                <div class="text-[9px] font-black text-orange-400 uppercase">Desejada</div>
+                                <input type="date" value="${item.dataDesejada || ''}" 
+                                    onchange="window.atualizarDataDesejada('${item.id}', this.value)" 
                                     class="text-[11px] font-bold text-slate-700 bg-transparent outline-none w-full text-center cursor-pointer hover:text-blue-600 transition-colors">
                             </div>
 
@@ -260,9 +268,9 @@
             let textoData = "";
             if (dInicio || dFim) {
                 const formataBr = dataIso => dataIso.split('-').reverse().join('/');
-                if (dInicio && dFim) textoData = ` | Período Previsto: ${formataBr(dInicio)} a ${formataBr(dFim)}`;
-                else if (dInicio) textoData = ` | Período Previsto: A partir de ${formataBr(dInicio)}`;
-                else if (dFim) textoData = ` | Período Previsto: Até ${formataBr(dFim)}`;
+                if (dInicio && dFim) textoData = ` | Período Desejado: ${formataBr(dInicio)} a ${formataBr(dFim)}`;
+                else if (dInicio) textoData = ` | Período Desejado: A partir de ${formataBr(dInicio)}`;
+                else if (dFim) textoData = ` | Período Desejado: Até ${formataBr(dFim)}`;
             }
 
             doc.setFontSize(14);
@@ -271,8 +279,7 @@
             doc.setFontSize(9);
             doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 22);
 
-            // NOVO CAMPO "Previsão" ADICIONADO NA TABELA
-            const colunas = [["Cód / Nimbi", "Material", "Local", "Status", "Previsão", "Qtd Total", "Chegou", "Falta", "Valor (R$)"]];
+            const colunas = [["Cód / Nimbi", "Material", "Local", "Status", "Desejada", "Qtd Total", "Chegou", "Falta", "Valor (R$)"]];
             
             const linhas = registrosFiltrados.map(item => {
                 const cod = item.codigo || 'S/C';
@@ -290,9 +297,8 @@
 
                 const statusFormatado = item.status.charAt(0).toUpperCase() + item.status.slice(1);
                 
-                // Formatação da data prevista para o padrão BR
-                const dataPrevFormatada = item.dataPrevisao 
-                    ? item.dataPrevisao.split('-').reverse().join('/') 
+                const dataDesFormatada = item.dataDesejada
+                    ? item.dataDesejada.split('-').reverse().join('/') 
                     : '-';
 
                 return [
@@ -300,7 +306,7 @@
                     item.nome,
                     item.local || 'Geral',
                     statusFormatado,
-                    dataPrevFormatada, // Coluna nova
+                    dataDesFormatada,
                     item.quantidade || '0',
                     chegou,
                     falta,
@@ -313,18 +319,64 @@
                 body: linhas,
                 startY: 28,
                 styles: { fontSize: 8.5, cellPadding: 3 },
-                headStyles: { fillColor: [37, 99, 235] },
+                headStyles: { fillColor: [37, 99, 235] }, // Cor Azul Elétrica
                 alternateRowStyles: { fillColor: [248, 250, 252] },
                 columnStyles: {
-                    4: { halign: 'center', fontStyle: 'bold' }, // Previsão
-                    5: { halign: 'center' }, // Qtd Total
-                    6: { halign: 'center' }, // Chegou
-                    7: { halign: 'center', textColor: [220, 38, 38] }, // Falta
-                    8: { halign: 'right' }   // Valor Total
+                    4: { halign: 'center', fontStyle: 'bold' },
+                    5: { halign: 'center' },
+                    6: { halign: 'center' },
+                    7: { halign: 'center', textColor: [220, 38, 38] },
+                    8: { halign: 'right' }
                 }
             });
 
-            doc.save(`Relatorio_Compras_${new Date().getTime()}.pdf`);
+            doc.save(`Relatorio_Compras_Eletrica_${new Date().getTime()}.pdf`);
+        };
+
+        // NOVA FUNÇÃO: GERAÇÃO DE EXCEL
+        window.gerarExcel = () => {
+            if (registrosFiltrados.length === 0) {
+                alert("Nenhum registro encontrado para exportar.");
+                return;
+            }
+
+            // Preparar os dados formatados para a planilha
+            const dadosPlanilha = registrosFiltrados.map(item => {
+                let chegou = "-";
+                let falta = "-";
+                
+                if (item.status === 'parcial') {
+                    const t = parseFloat(item.quantidade) || 0;
+                    const r = parseFloat(item.qtdRecebida) || 0;
+                    chegou = r;
+                    falta = (t - r) > 0 ? (t - r) : 0;
+                }
+
+                const statusFormatado = item.status ? (item.status.charAt(0).toUpperCase() + item.status.slice(1)) : '';
+                const dataDesFormatada = item.dataDesejada ? item.dataDesejada.split('-').reverse().join('/') : '-';
+
+                return {
+                    "Código": item.codigo || 'S/C',
+                    "Nimbi": item.codigoNimbi || '',
+                    "Material": item.nome || '',
+                    "Local": item.local || 'Geral',
+                    "Status": statusFormatado,
+                    "Data Desejada": dataDesFormatada,
+                    "Qtd Total": item.quantidade ? Number(item.quantidade) : 0,
+                    "Chegou (Parcial)": chegou !== "-" ? Number(chegou) : chegou,
+                    "Falta (Parcial)": falta !== "-" ? Number(falta) : falta,
+                    "Valor (R$)": item.valorTotal ? Number(item.valorTotal) : 0,
+                    "Observações": item.observacao || ''
+                };
+            });
+
+            // Criar uma nova pasta de trabalho (workbook) e uma folha (worksheet)
+            const worksheet = XLSX.utils.json_to_sheet(dadosPlanilha);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Relatorio de Compras");
+
+            // Acionar o download do arquivo com nome alterado para Elétrica
+            XLSX.writeFile(workbook, `Relatorio_Compras_Eletrica_${new Date().getTime()}.xlsx`);
         };
 
         onSnapshot(query(comprasRef, orderBy("dataCriacao", "desc")), (snap) => {
@@ -344,10 +396,10 @@
             renderizarLista();
         });
 
-        // NOVA FUNÇÃO GLOBAL para atualizar data de previsão
-        window.atualizarDataPrevisao = async (id, dataISO) => {
-            try { await updateDoc(doc(db, "compras", id), { dataPrevisao: dataISO }); } 
-            catch (e) { console.error("Erro ao atualizar previsão:", e); }
+        // FUNÇÃO GLOBAL para atualizar data desejada
+        window.atualizarDataDesejada = async (id, dataISO) => {
+            try { await updateDoc(doc(db, "compras", id), { dataDesejada: dataISO }); } 
+            catch (e) { console.error("Erro ao atualizar data desejada:", e); }
         };
 
         window.atualizarStatus = async (id, novoStatus) => {
