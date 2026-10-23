@@ -1,0 +1,2009 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Automação de Budget de Manutenção</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js para gráficos dinâmicos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Font Awesome para ícones industriais -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+    }
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.85rem 1.5rem;
+      background: #090e17;
+      border-bottom: 1px solid #1e293b;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .navbar a {
+      transition: all 0.2s ease;
+    }
+    .navbar a:hover {
+      color: #38bdf8 !important;
+      transform: translateX(-2px);
+    }
+    ::-webkit-scrollbar {
+      height: 8px;
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .table-input:focus {
+      outline: 2px solid #0284c7;
+      background-color: #020617;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased flex flex-col">
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div style="font-weight: 800; color: var(--primary); font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
+      <span>⚡</span> ELÉTRICA APP
+      <span class="text-xs font-mono font-normal bg-sky-950/80 text-sky-400 px-2 py-0.5 rounded-full border border-sky-800 ml-2 hidden sm:inline-block">
+        Módulo Budget 2026/2027
+      </span>
+    </div>
+    <div class="flex items-center gap-4">
+      <span id="firebaseStatusBadge" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-950/70 text-amber-300 border border-amber-800">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+        Conectando...
+      </span>
+      <a href="../principal.html" style="text-decoration: none; color: #94a3b8; font-weight: 600; font-size: 0.9rem;" class="flex items-center gap-1.5">
+        <span>⬅</span> Voltar ao Início
+      </a>
+    </div>
+  </nav>
+
+  <!-- Sub-header com Ações do Sistema -->
+  <header class="bg-slate-900/90 border-b border-slate-800/80 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div>
+        <h1 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-calculator text-sky-400"></i> Orçamento Anual de Manutenção (Revisão 2º Semestre)
+        </h1>
+        <p class="text-xs text-slate-400">
+          Programação de compras por código, alocação mensal e integração com base oficial de estoque
+        </p>
+      </div>
+
+      <!-- Ações rápidas -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="importPredefinedCatalog()" id="btnImportCatalog" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-sky-700 hover:bg-sky-600 text-white shadow-sm flex items-center gap-1.5 transition" title="Carregar os itens catalogados da planilha para o banco de dados">
+          <i class="fa-solid fa-cloud-arrow-down"></i> <span>Carregar Itens</span>
+        </button>
+        <button onclick="openBalanceModal()" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-violet-950 hover:bg-violet-900 text-violet-300 border border-violet-700/60 flex items-center gap-1.5 transition shadow-sm" title="Analisar picos e balancear gastos mensais">
+          <i class="fa-solid fa-scale-balanced text-violet-400"></i> <span>Balancear Gastos</span>
+        </button>
+        <button onclick="openPythonModal()" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 flex items-center gap-1.5 transition">
+          <i class="fa-brands fa-python text-sm"></i> <span class="hidden lg:inline">Script</span> Python
+        </button>
+        <button onclick="exportCSV()" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-file-csv text-emerald-400"></i> CSV
+        </button>
+        <button onclick="confirmClearDatabase()" class="px-2 py-1.5 text-xs font-medium rounded-lg bg-rose-950/70 hover:bg-rose-900 text-rose-300 border border-rose-800/70 flex items-center gap-1 transition" title="Limpar base do Firestore">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+        <button onclick="openItemModal()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white shadow-md shadow-sky-600/30 flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-plus"></i> <span>Novo Item</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Container Principal -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Seção de KPIs do Orçamento -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
+        <div class="absolute right-3 top-3 text-sky-500/20 text-4xl"><i class="fa-solid fa-sack-dollar"></i></div>
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Custo Anual Total Previsto</span>
+        <div class="text-2xl font-bold text-white mt-1" id="kpi-total-anual">R$ 0,00</div>
+        <p class="text-xs text-slate-500 mt-2 flex items-center gap-1">
+          <span class="text-sky-400 font-medium" id="kpi-total-itens">0</span> itens cadastrados no Firestore
+        </p>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
+        <div class="absolute right-3 top-3 text-amber-500/20 text-4xl"><i class="fa-solid fa-calendar-days"></i></div>
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">1º Semestre (Jan - Jun)</span>
+        <div class="text-2xl font-bold text-amber-400 mt-1" id="kpi-semestre-1">R$ 0,00</div>
+        <p class="text-xs text-slate-500 mt-2" id="kpi-pct-s1">0% do orçamento anual</p>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
+        <div class="absolute right-3 top-3 text-indigo-500/20 text-4xl"><i class="fa-solid fa-calendar-check"></i></div>
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">2º Semestre (Jul - Dez)</span>
+        <div class="text-2xl font-bold text-indigo-400 mt-1" id="kpi-semestre-2">R$ 0,00</div>
+        <p class="text-xs text-slate-500 mt-2" id="kpi-pct-s2">0% do orçamento anual</p>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
+        <div class="absolute right-3 top-3 text-emerald-500/20 text-4xl"><i class="fa-solid fa-chart-line"></i></div>
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mês de Maior Desembolso</span>
+        <div class="text-xl font-bold text-emerald-400 mt-1" id="kpi-mes-pico">-</div>
+        <p class="text-xs text-slate-500 mt-2" id="kpi-mes-pico-valor">R$ 0,00</p>
+      </div>
+    </section>
+
+    <!-- Gráfico de Tendência Mensal de Desembolso -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800/80 gap-2">
+        <div>
+          <h2 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+            <i class="fa-solid fa-chart-simple text-sky-400"></i> Projeção Mensal de Compras e Desembolso (2026/2027)
+          </h2>
+          <p class="text-xs text-slate-400">Curva consolidada mês a mês calculada em tempo real com base no Firestore</p>
+        </div>
+        <div class="text-xs font-mono text-slate-400 bg-slate-950 px-3 py-1.5 rounded border border-slate-800">
+          Total Orçado: <span id="chart-total-tag" class="text-sky-400 font-bold">R$ 0,00</span>
+        </div>
+      </div>
+      <div class="mt-4 h-64 w-full">
+        <canvas id="monthlyExpensesChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Navegação de Abas -->
+    <div class="border-b border-slate-800 flex items-center space-x-6 text-sm font-medium overflow-x-auto">
+      <button onclick="switchTab('itens')" id="tab-btn-itens" class="pb-3 border-b-2 border-sky-500 text-sky-400 flex items-center gap-2 transition whitespace-nowrap">
+        <i class="fa-solid fa-table-list"></i> Visão Geral (Grade Anual)
+      </button>
+      <button onclick="switchTab('mensal')" id="tab-btn-mensal" class="pb-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition whitespace-nowrap">
+        <i class="fa-solid fa-calendar-day text-amber-400"></i> Filtro por Mês de Compra
+      </button>
+      <button onclick="switchTab('resumo')" id="tab-btn-resumo" class="pb-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition whitespace-nowrap">
+        <i class="fa-solid fa-table-cells"></i> Matriz Consolidada de Categorias
+      </button>
+    </div>
+
+    <!-- ABA 1: VISÃO GERAL (GRADE ANUAL COMPLETA) -->
+    <div id="tab-content-itens" class="space-y-4">
+      
+      <!-- Barra de Ferramentas / Filtros -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row gap-3 items-center justify-between">
+        <div class="flex flex-1 flex-col sm:flex-row gap-3 w-full">
+          <div class="relative flex-1">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-500 text-sm"></i>
+            <input type="text" id="searchInput" oninput="renderItemsTable()" placeholder="Buscar por código (ex: 18398, 28784) ou descrição..." 
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500">
+          </div>
+          <select id="categoryFilter" onchange="renderItemsTable()" 
+            class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-sky-500">
+            <option value="TODAS">Todas as Disciplinas</option>
+            <option value="Materiais Elétricos">Materiais Elétricos</option>
+            <option value="Materiais Mecânicos">Materiais Mecânicos</option>
+            <option value="Manutenção Hidráulica">Manutenção Hidráulica</option>
+            <option value="Serviços">Serviços</option>
+            <option value="Lubrificantes/Gases">Lubrificantes/Gases</option>
+            <option value="Conservação de Bens">Conservação de Bens</option>
+            <option value="Materiais de Consumo">Materiais de Consumo</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+          <button onclick="openItemModal()" class="px-3 py-2 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-plus"></i> Novo Item
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabela Grade Anual -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+        <div class="p-3 bg-slate-800/40 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
+          <span><i class="fa-solid fa-bolt text-amber-400 mr-1"></i> Digite a quantidade no mês desejado. A sincronização no Firestore acontece em tempo real.</span>
+          <span id="filtered-count" class="font-mono font-medium text-slate-300">Carregando itens...</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
+                <th class="p-3 whitespace-nowrap min-w-[100px] sticky left-0 bg-slate-950 z-20 shadow-md">Código</th>
+                <th class="p-3 whitespace-nowrap min-w-[240px]">Descrição da Peça / Serviço</th>
+                <th class="p-3 whitespace-nowrap min-w-[140px]">Categoria</th>
+                <th class="p-3 whitespace-nowrap text-right min-w-[100px]">Valor Unit.</th>
+                <!-- Meses -->
+                <th class="p-2 text-center min-w-[65px] bg-slate-900/60">Jan</th>
+                <th class="p-2 text-center min-w-[65px] bg-slate-900/60">Fev</th>
+                <th class="p-2 text-center min-w-[65px] bg-slate-900/60">Mar</th>
+                <th class="p-2 text-center min-w-[65px] bg-slate-900/60">Abr</th>
+                <th class="p-2 text-center min-w-[65px] bg-slate-900/60">Mai</th>
+                <th class="p-2 text-center min-w-[65px] bg-slate-900/60">Jun</th>
+                <th class="p-2 text-center min-w-[65px] bg-indigo-950/40 text-indigo-300">Jul</th>
+                <th class="p-2 text-center min-w-[65px] bg-indigo-950/40 text-indigo-300">Ago</th>
+                <th class="p-2 text-center min-w-[65px] bg-indigo-950/40 text-indigo-300">Set</th>
+                <th class="p-2 text-center min-w-[65px] bg-indigo-950/40 text-indigo-300">Out</th>
+                <th class="p-2 text-center min-w-[65px] bg-indigo-950/40 text-indigo-300">Nov</th>
+                <th class="p-2 text-center min-w-[65px] bg-indigo-950/40 text-indigo-300">Dez</th>
+                <!-- Totais -->
+                <th class="p-3 text-center whitespace-nowrap font-bold text-slate-300 min-w-[80px]">Qtd Total</th>
+                <th class="p-3 text-right whitespace-nowrap font-bold text-emerald-400 min-w-[120px]">Custo Total Ano</th>
+                <th class="p-3 text-center min-w-[70px]">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="itemsTableBody" class="divide-y divide-slate-800/60 text-slate-200">
+              <!-- Populado via Javascript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA 2: FILTRO POR MÊS DE COMPRA (PROGRAMAÇÃO E REMANEJAMENTO DIRETO) -->
+    <div id="tab-content-mensal" class="hidden space-y-4">
+      
+      <!-- Seletor do Mês Ativo, Filtro por Disciplina e Resumo Rápido -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-calendar-day text-sky-400"></i> Mês:
+            </label>
+            <select id="selectMonthFilter" onchange="renderMonthlyProgramTable()" 
+              class="bg-slate-950 border border-sky-600/50 rounded-lg px-3 py-2 text-sm text-sky-300 font-semibold focus:outline-none focus:border-sky-400">
+              <option value="0">Janeiro</option>
+              <option value="1">Fevereiro</option>
+              <option value="2">Março</option>
+              <option value="3">Abril</option>
+              <option value="4">Maio</option>
+              <option value="5">Junho</option>
+              <option value="6">Julho</option>
+              <option value="7">Agosto</option>
+              <option value="8">Setembro</option>
+              <option value="9">Outubro</option>
+              <option value="10">Novembro</option>
+              <option value="11">Dezembro</option>
+            </select>
+            <button onclick="changeSelectedMonth(-1)" class="px-2.5 py-2 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700" title="Mês Anterior">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <button onclick="changeSelectedMonth(1)" class="px-2.5 py-2 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700" title="Próximo Mês">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-filter text-amber-400"></i> Disciplina:
+            </label>
+            <select id="monthlyCategoryFilter" onchange="renderMonthlyProgramTable()" 
+              class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-sky-500">
+              <option value="TODAS">Todas as Disciplinas</option>
+              <option value="Materiais Elétricos">Materiais Elétricos</option>
+              <option value="Materiais Mecânicos">Materiais Mecânicos</option>
+              <option value="Manutenção Hidráulica">Manutenção Hidráulica</option>
+              <option value="Serviços">Serviços</option>
+              <option value="Lubrificantes/Gases">Lubrificantes/Gases</option>
+              <option value="Conservação de Bens">Conservação de Bens</option>
+              <option value="Materiais de Consumo">Materiais de Consumo</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Indicador de Desembolso do Mês Selecionado -->
+        <div class="flex items-center gap-3 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 self-start lg:self-auto">
+          <div>
+            <div class="text-[10px] text-slate-400 uppercase font-medium">Total do Mês:</div>
+            <div class="text-base font-bold text-emerald-400 font-mono" id="monthly-selected-total">R$ 0,00</div>
+          </div>
+          <div class="border-l border-slate-800 pl-3">
+            <div class="text-[10px] text-slate-400 uppercase font-medium">Itens Distintos:</div>
+            <div class="text-base font-bold text-sky-400 font-mono" id="monthly-selected-count">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabela Filtrada por Mês -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+        <div class="p-3 bg-slate-800/40 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
+          <span><i class="fa-solid fa-arrow-down-up-across-line text-sky-400 mr-1"></i> Altere as quantidades a serem compradas no mês ou transfira para outro mês com <strong>Trocar Mês</strong>.</span>
+          <span id="monthly-table-summary" class="font-mono text-slate-300">0 itens encontrados</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
+                <th class="p-3 min-w-[100px]">Código</th>
+                <th class="p-3 min-w-[260px]">Descrição da Peça / Serviço</th>
+                <th class="p-3 min-w-[150px]">Categoria</th>
+                <th class="p-3 text-right min-w-[110px]">Valor Unitário</th>
+                <th class="p-3 text-center min-w-[140px] bg-sky-950/30 text-sky-300 font-bold">Qtd a Comprar no Mês</th>
+                <th class="p-3 text-right min-w-[130px] font-bold text-emerald-400">Subtotal do Mês</th>
+                <th class="p-3 text-center min-w-[160px]">Trocar de Mês</th>
+              </tr>
+            </thead>
+            <tbody id="monthlyTableBody" class="divide-y divide-slate-800/60 text-slate-200">
+              <!-- Populado via Javascript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ABA 3: MATRIZ CONSOLIDADA POR CATEGORIA -->
+    <div id="tab-content-resumo" class="hidden space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+        <div class="p-4 bg-slate-950/60 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <div>
+            <h3 class="font-bold text-white text-base">Orçamento Anual de Manutenção - Movimentação Consolidada</h3>
+            <p class="text-xs text-slate-400">Totalização somada por categoria de despesa em cada mês (Jan a Dez)</p>
+          </div>
+          <span class="text-xs font-mono bg-sky-950 text-sky-300 px-3 py-1 rounded-full border border-sky-800">
+            Ano Orçamentário 2026/2027
+          </span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
+                <th class="p-3 whitespace-nowrap sticky left-0 bg-slate-950 z-10 shadow min-w-[200px]">Movimentação / Categoria</th>
+                <th class="p-3 text-right">Jan</th>
+                <th class="p-3 text-right">Fev</th>
+                <th class="p-3 text-right">Mar</th>
+                <th class="p-3 text-right">Abr</th>
+                <th class="p-3 text-right">Mai</th>
+                <th class="p-3 text-right">Jun</th>
+                <th class="p-3 text-right text-indigo-300 bg-indigo-950/20">Jul</th>
+                <th class="p-3 text-right text-indigo-300 bg-indigo-950/20">Ago</th>
+                <th class="p-3 text-right text-indigo-300 bg-indigo-950/20">Set</th>
+                <th class="p-3 text-right text-indigo-300 bg-indigo-950/20">Out</th>
+                <th class="p-3 text-right text-indigo-300 bg-indigo-950/20">Nov</th>
+                <th class="p-3 text-right text-indigo-300 bg-indigo-950/20">Dez</th>
+                <th class="p-3 text-right font-bold text-sky-400 bg-slate-950">TOTAL ANUAL</th>
+              </tr>
+            </thead>
+            <tbody id="consolidatedMatrixBody" class="divide-y divide-slate-800 text-slate-200">
+              <!-- Populado dinamicamente -->
+            </tbody>
+            <tfoot>
+              <tr id="consolidatedTotalRow" class="bg-slate-950/90 font-bold text-slate-100 border-t-2 border-slate-700">
+                <!-- Linha de Total Geral -->
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL: TRANSFERIR / TROCAR DE MÊS -->
+  <div id="transferModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+      <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-arrow-right-arrow-left text-sky-400"></i> Trocar Mês de Compra
+        </h3>
+        <button onclick="closeTransferModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="p-5 space-y-4 text-xs">
+        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+          <div class="font-mono text-sky-400 font-bold" id="transfer-item-code">CÓDIGO</div>
+          <div class="text-slate-200 font-medium text-sm mt-0.5" id="transfer-item-desc">Descrição da Peça</div>
+          <div class="text-slate-500 mt-1">Valor Unitário: <span id="transfer-item-price" class="font-mono text-slate-300">R$ 0,00</span></div>
+        </div>
+
+        <input type="hidden" id="transfer-item-id">
+        <input type="hidden" id="transfer-from-month">
+
+        <div>
+          <label class="block text-slate-400 font-semibold mb-1">Mês Atual de Origem:</label>
+          <input type="text" id="transfer-from-month-name" readonly class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-400 font-semibold cursor-not-allowed">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Quantidade a Mover:</label>
+            <input type="number" id="transfer-qty" min="1" value="1" 
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-sky-500">
+            <span class="text-[10px] text-slate-500">Máx disponível: <span id="transfer-max-qty">0</span></span>
+          </div>
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Novo Mês de Destino:</label>
+            <select id="transfer-to-month" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+              <!-- Populado via JS -->
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4 border-t border-slate-800 flex justify-end gap-2 bg-slate-950/40">
+        <button onclick="closeTransferModal()" class="px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 rounded-lg transition">Cancelar</button>
+        <button onclick="confirmTransferMonth()" id="btnConfirmTransfer" class="px-4 py-1.5 text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white rounded-lg transition shadow-md shadow-sky-600/30 flex items-center gap-1.5">
+          <i class="fa-solid fa-check"></i> Confirmar Transferência
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SUGESTÕES DE BALANCEAMENTO DE GASTOS -->
+  <div id="balanceModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
+      <div class="p-5 border-b border-slate-800 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <div class="p-2 bg-violet-500/20 text-violet-400 rounded-lg">
+            <i class="fa-solid fa-scale-balanced text-lg"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">Assistente de Nivelamento Orçamentário</h3>
+            <p class="text-xs text-slate-400">Identificação de picos sazonais e redistribuição inteligente para meses ociosos</p>
+          </div>
+        </div>
+        <button onclick="closeBalanceModal()" class="text-slate-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="p-6 space-y-5">
+        <!-- Indicadores de Diagnóstico -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+            <span class="text-[11px] text-slate-400 block uppercase font-medium">Meta Média Mensal</span>
+            <span id="bal-media-mensal" class="text-lg font-bold text-sky-400 font-mono">R$ 0,00</span>
+            <span class="text-[10px] text-slate-500 block">Total anual dividido por 12</span>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+            <span class="text-[11px] text-slate-400 block uppercase font-medium">Mês com Maior Excesso</span>
+            <span id="bal-mes-critico" class="text-lg font-bold text-rose-400">-</span>
+            <span id="bal-mes-critico-val" class="text-[10px] text-slate-500 block">R$ 0,00 acima da média</span>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+            <span class="text-[11px] text-slate-400 block uppercase font-medium">Melhor Janela Receptora</span>
+            <span id="bal-mes-alivio" class="text-lg font-bold text-emerald-400">-</span>
+            <span id="bal-mes-alivio-val" class="text-[10px] text-slate-500 block">Capacidade livre disponível</span>
+          </div>
+        </div>
+
+        <!-- Lista de Sugestões -->
+        <div>
+          <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-lightbulb text-amber-400"></i> Sugestões de Remanejamento Calculadas
+          </h4>
+          <div id="suggestionsContainer" class="space-y-2.5">
+            <!-- Populado via JS -->
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4 border-t border-slate-800 flex justify-between items-center bg-slate-950/50">
+        <span class="text-xs text-slate-400">
+          <i class="fa-solid fa-circle-info text-sky-400 mr-1"></i> As alterações ajustam as quantidades e sincronizam direto no Firestore.
+        </span>
+        <button onclick="closeBalanceModal()" class="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-white transition">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CADASTRAR / EDITAR ITEM COM CONSULTA DE ESTOQUE INTEGRADA -->
+  <div id="itemModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div class="p-5 border-b border-slate-800 flex justify-between items-center">
+        <h3 id="modalTitle" class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-box text-sky-500"></i> Cadastrar Item para Programação
+        </h3>
+        <button onclick="closeItemModal()" class="text-slate-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="itemForm" onsubmit="handleSaveItem(event)" class="p-6 space-y-4">
+        <input type="hidden" id="form-item-id">
+        <!-- Guarda o ID do documento da coleção 'produtos' se o item foi encontrado -->
+        <input type="hidden" id="form-estoque-doc-id">
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1 flex items-center justify-between">
+              <span>Código do Item / RM *</span>
+              <span id="estoqueStatusBadge" class="text-[10px] text-slate-500 font-normal"></span>
+            </label>
+            <div class="relative">
+              <input type="text" id="form-item-code" required placeholder="Ex: 28784" 
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:outline-none focus:border-sky-500 font-mono">
+              <button type="button" onclick="consultarEstoquePorCodigo()" class="absolute right-2 top-2.5 text-slate-400 hover:text-sky-400 text-xs" title="Buscar no banco de estoque">
+                <i class="fa-solid fa-magnifying-glass" id="iconeBuscaEstoque"></i>
+              </button>
+            </div>
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Descrição do Item *</label>
+            <input type="text" id="form-item-desc" required placeholder="Ex: MOTOR WEG 5CV SALA DE CORTE" 
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Disciplina / Categoria *</label>
+            <select id="form-item-category" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500">
+              <option value="Materiais Elétricos">Materiais Elétricos</option>
+              <option value="Materiais Mecânicos">Materiais Mecânicos</option>
+              <option value="Manutenção Hidráulica">Manutenção Hidráulica</option>
+              <option value="Serviços">Serviços</option>
+              <option value="Lubrificantes/Gases">Lubrificantes/Gases</option>
+              <option value="Conservação de Bens">Conservação de Bens</option>
+              <option value="Materiais de Consumo">Materiais de Consumo</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Valor Unitário Médio (R$) *</label>
+            <input type="number" step="0.01" min="0" id="form-item-price" required placeholder="0.00" 
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500 font-mono">
+          </div>
+        </div>
+
+        <!-- Opção de Sincronizar com Estoque Oficial -->
+        <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 flex items-center justify-between">
+          <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+            <input type="checkbox" id="syncWithEstoqueCheckbox" checked class="w-4 h-4 rounded text-sky-600 bg-slate-900 border-slate-700 focus:ring-0">
+            <span>Sincronizar dados com a coleção oficial de <strong>Estoque (produtos)</strong></span>
+          </label>
+          <span class="text-[10px] text-slate-500 hidden sm:inline">Atualiza descrição/valor se alterados</span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-2 mt-4 flex items-center justify-between">
+            <span>Planejamento de Quantidades por Mês:</span>
+            <span class="text-xs font-normal text-slate-500">Insira as compras programadas</span>
+          </label>
+          <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800">
+            <div class="text-center">
+              <label class="text-[10px] text-slate-400">Jan</label>
+              <input type="number" min="0" id="month-0" class="w-full bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs text-white" value="0">
+            </div>
+            <div class="text-center">
+              <label class="text-[10px] text-slate-400">Fev</label>
+              <input type="number" min="0" id="month-1" class="w-full bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs text-white" value="0">
+            </div>
+            <div class="text-center">
+              <label class="text-[10px] text-slate-400">Mar</label>
+              <input type="number" min="0" id="month-2" class="w-full bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs text-white" value="0">
+            </div>
+            <div class="text-center">
+              <label class="text-[10px] text-slate-400">Abr</label>
+              <input type="number" min="0" id="month-3" class="w-full bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs text-white" value="0">
+            </div>
+            <div class="text-center">
+              <label class="text-[10px] text-slate-400">Mai</label>
+              <input type="number" min="0" id="month-4" class="w-full bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs text-white" value="0">
+            </div>
+            <div class="text-center">
+              <label class="text-[10px] text-slate-400">Jun</label>
+              <input type="number" min="0" id="month-5" class="w-full bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs text-white" value="0">
+            </div>
+            <div class="text-center">
+              <label class="text-[10px] text-indigo-400">Jul</label>
+              <input type="number" min="0" id="month-6" class="w-full bg-indigo-950/40 border border-indigo-700/60 rounded p-1 text-center text-xs text-white" value="0">
+            </div>
+            <div class="text-center">
+              <label class="text-[10px] text-indigo-400">Ago</label>
+              <input type="number" min="0" id="month-7" class="w-full bg-indigo-950/40 border border-indigo-700/60 rounded p-1 text-center text-xs text-white" value="0">
+            </div>
+            <div class="text-center">
+              <label class="text-[10px] text-indigo-400">Set</label>
+              <input type="number" min="0" id="month-8" class="w-full bg-indigo-950/40 border border-indigo-700/60 rounded p-1 text-center text-xs text-white" value="0">
+            </div>
+            <div class="text-center">
+              <label class="text-[10px] text-indigo-400">Out</label>
+              <input type="number" min="0" id="month-9" class="w-full bg-indigo-950/40 border border-indigo-700/60 rounded p-1 text-center text-xs text-white" value="0">
+            </div>
+            <div class="text-center">
+              <label class="text-[10px] text-indigo-400">Nov</label>
+              <input type="number" min="0" id="month-10" class="w-full bg-indigo-950/40 border border-indigo-700/60 rounded p-1 text-center text-xs text-white" value="0">
+            </div>
+            <div class="text-center">
+              <label class="text-[10px] text-indigo-400">Dez</label>
+              <input type="number" min="0" id="month-11" class="w-full bg-indigo-950/40 border border-indigo-700/60 rounded p-1 text-center text-xs text-white" value="0">
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-slate-800 flex justify-end space-x-3">
+          <button type="button" onclick="closeItemModal()" class="px-4 py-2 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-800 transition">Cancelar</button>
+          <button type="submit" id="saveItemBtn" class="px-5 py-2 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-600/30 transition flex items-center gap-2">
+            <span>Salvar no Firestore</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: SCRIPT PYTHON DE SINCRONIZAÇÃO -->
+  <div id="pythonModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
+      <div class="p-5 border-b border-slate-800 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <i class="fa-brands fa-python text-emerald-400 text-xl"></i>
+          <div>
+            <h3 class="text-base font-bold text-white">Script de Automação Python</h3>
+            <p class="text-xs text-slate-400">Exporta os dados atuais do Firestore diretamente para o formato Excel .xlsx</p>
+          </div>
+        </div>
+        <button onclick="closePythonModal()" class="text-slate-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="p-6 space-y-4 text-xs">
+        <p class="text-slate-300">
+          Você pode rodar este código no terminal do seu computador com os dados sincronizados em tempo real:
+        </p>
+        <div class="relative">
+          <pre id="pythonCodeBlock" class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-emerald-300 font-mono text-[11px] overflow-x-auto max-h-72 leading-relaxed">
+# Carregando dados...
+          </pre>
+          <button onclick="copyPythonCode()" class="absolute top-3 right-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1 rounded text-[11px] flex items-center gap-1 transition">
+            <i class="fa-solid fa-copy"></i> Copiar Código
+          </button>
+        </div>
+      </div>
+
+      <div class="p-4 border-t border-slate-800 flex justify-between items-center bg-slate-950/40">
+        <span class="text-xs text-slate-400">Requer: pip install pandas openpyxl</span>
+        <button onclick="closePythonModal()" class="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-white transition">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIRMAÇÃO DE EXCLUSÃO / RESET -->
+  <div id="confirmModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl">
+      <div class="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto text-xl">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <div>
+        <h4 id="confirmModalTitle" class="text-base font-bold text-white">Confirmação de Ação</h4>
+        <p id="confirmModalDesc" class="text-xs text-slate-400 mt-1">Essa ação não poderá ser revertida.</p>
+      </div>
+      <div class="flex justify-center gap-3 pt-2">
+        <button onclick="closeConfirmModal()" class="px-4 py-2 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-800 transition">Cancelar</button>
+        <button id="confirmModalActionBtn" class="px-4 py-2 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-500 text-white transition">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notificação Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 bg-sky-600 text-white text-xs font-semibold px-4 py-3 rounded-lg shadow-xl hidden transition-all duration-300 flex items-center gap-2">
+    <i class="fa-solid fa-check"></i> <span id="toastMsg">Operação realizada com sucesso!</span>
+  </div>
+
+  <!-- Rodapé -->
+  <footer class="border-t border-slate-800/80 py-4 mt-8 bg-slate-950 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4">
+      Orçamento Industrial Manutenção • Conectado ao Firebase Cloud (<span class="font-mono text-slate-400">eletrica-8c96e</span>)
+    </div>
+  </footer>
+
+  <!-- Firebase SDK modular via CDN -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { 
+      getFirestore, 
+      collection, 
+      onSnapshot, 
+      doc, 
+      addDoc, 
+      updateDoc, 
+      deleteDoc, 
+      getDocs, 
+      writeBatch, 
+      query,
+      where,
+      limit,
+      serverTimestamp 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Configuração do Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyB_w4-z_onAEUf10ROfYCmvnm6Fkkp2sYo",
+      authDomain: "eletrica-8c96e.firebaseapp.com",
+      projectId: "eletrica-8c96e",
+      storageBucket: "eletrica-8c96e.firebasestorage.app",
+      messagingSenderId: "456815528430",
+      appId: "1:456815528430:web:4cf873dc8071c9a2bbe6ff"
+    };
+
+    // Inicialização
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const ITEMS_COLLECTION = 'budget_itens';
+    const ESTOQUE_COLLECTION = 'produtos';
+
+    const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    const CATEGORIES = [
+      'Materiais Elétricos',
+      'Manutenção Hidráulica',
+      'Materiais Mecânicos',
+      'Serviços',
+      'Lubrificantes/Gases',
+      'Conservação de Bens',
+      'Materiais de Consumo'
+    ];
+
+    // CATÁLOGO REAL EXTRAÍDO DA PLANILHA INDUSTRIAL
+    const INDUSTRIAL_CATALOG = [
+      { code: "18398", desc: "FONTE SITOP 10A 24V 6EP3334-3SB00-0AX0", category: "Materiais Elétricos", unitPrice: 530.00, schedule: [4, 4, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { code: "1534386", desc: "LOGOPOWER 1.3A 6EP13311SH03 / 6EP3331 SIEMENS", category: "Materiais Elétricos", unitPrice: 389.00, schedule: [10, 10, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { code: "550454", desc: "Secador de Mão Industrial", category: "Materiais Elétricos", unitPrice: 1836.00, schedule: [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { code: "267465", desc: "MOTOR CR-109 Secador de Mãos", category: "Materiais Elétricos", unitPrice: 437.00, schedule: [3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { code: "476323", desc: "FILTRO HEPA CR 109 BRAKEY", category: "Materiais Elétricos", unitPrice: 131.00, schedule: [30, 15, 30, 15, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { code: "164692", desc: "RESISTÊNCIA CR-109 Secadores de Mãos", category: "Materiais Elétricos", unitPrice: 280.00, schedule: [14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { code: "1366262", desc: "Ventiladores completos área de espera", category: "Materiais Elétricos", unitPrice: 1006.00, schedule: [10, 10, 10, 10, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { code: "23054", desc: "KIT HÉLICE VENTILADOR AVICULTURA PLASSON", category: "Materiais Elétricos", unitPrice: 60.00, schedule: [10, 10, 10, 10, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { code: "256505", desc: "MOTOR ELETR TRIF 0,5CV 6P 220/380V WEG", category: "Materiais Elétricos", unitPrice: 1220.00, schedule: [3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { code: "96725", desc: "Luminária 26 watts LED Industrial", category: "Materiais Elétricos", unitPrice: 720.00, schedule: [6, 6, 6, 6, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { code: "357123", desc: "LUMINARIA LHB51 S9000740FMX", category: "Materiais Elétricos", unitPrice: 9.00, schedule: [25, 25, 25, 25, 25, 25, 0, 0, 0, 0, 0, 0] },
+      { code: "343718", desc: "Refletor 400W Industrial", category: "Materiais Elétricos", unitPrice: 346.00, schedule: [15, 15, 15, 15, 15, 15, 0, 0, 0, 0, 0, 0] },
+      { code: "427156", desc: "CONECTOR M8 MACHO 3 PINOS RETO", category: "Materiais Elétricos", unitPrice: 34.00, schedule: [5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { code: "427148", desc: "CONECTOR M8 FÊMEA 3 PINOS RETO", category: "Materiais Elétricos", unitPrice: 34.00, schedule: [5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { code: "522622", desc: "SENSOR INDUTIVO- 095915104 MAREL", category: "Materiais Elétricos", unitPrice: 823.00, schedule: [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { code: "311155", desc: "SENSOR FOTOELETRICO S18AW3D Secador Mão", category: "Materiais Elétricos", unitPrice: 1074.00, schedule: [6, 6, 6, 6, 6, 0, 0, 0, 0, 0, 0, 0] },
+      { code: "394854", desc: "FOTOCÉLULA TARJA – 1.44.200.02 RMF", category: "Materiais Elétricos", unitPrice: 999.63, schedule: [3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { code: "630547", desc: "Freio motor elevador da plataforma 40 nm", category: "Materiais Elétricos", unitPrice: 2395.00, schedule: [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0] },
+      { code: "85303", desc: "CONTROLADOR UNIVERSAL NOVUS N2000", category: "Materiais Elétricos", unitPrice: 1602.00, schedule: [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0] },
+      { code: "365783", desc: "SOLENOIDE 40MM 24DG 1836", category: "Materiais Elétricos", unitPrice: 400.00, schedule: [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0] },
+      { code: "1209876", desc: "MOTOR WEG 5CV 1720RPM 220/380V 4P PLUS", category: "Materiais Elétricos", unitPrice: 2450.00, schedule: [0, 0, 0, 0, 0, 0, 2, 0, 0, 2, 0, 2] },
+      { code: "283146", desc: "CLP S7-1200 1214 DC/DC/DC SIEMENS", category: "Materiais Elétricos", unitPrice: 5400.00, schedule: [0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0] },
+      { code: "540507", desc: "IHM 10 POL WEINTEK TECNOLOG IP", category: "Materiais Elétricos", unitPrice: 4250.00, schedule: [0, 0, 0, 0, 0, 0, 2, 2, 0, 2, 0, 2] },
+      { code: "339011", desc: "IHM 7,0 POL DOP-107EV DELTA", category: "Materiais Elétricos", unitPrice: 1972.00, schedule: [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0] },
+      { code: "232845", desc: "INVERSOR 5CV 10A CFW500 WEG", category: "Materiais Elétricos", unitPrice: 4000.00, schedule: [0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0] },
+      { code: "321637", desc: "INVERSOR FREQ CFW 500 7,5CV 14A WEG", category: "Materiais Elétricos", unitPrice: 4600.00, schedule: [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0] },
+      { code: "528617", desc: "INVERSOR 3F 380V 4,1A 2CV G120C SIEMENS", category: "Materiais Elétricos", unitPrice: 2916.66, schedule: [0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2] },
+      { code: "373267", desc: "BORNE RELÉ 2NA 24VCC LZXRT424024 SIEMENS", category: "Materiais Elétricos", unitPrice: 28.00, schedule: [0, 0, 0, 0, 0, 0, 50, 50, 50, 50, 50, 0] },
+      { code: "1260379", desc: "RELÉ PERFIL FINO 3RQ3118 6MM 24VCC SIEMENS", category: "Materiais Elétricos", unitPrice: 70.00, schedule: [0, 0, 0, 0, 0, 0, 40, 40, 40, 40, 40, 0] },
+      { code: "1437153", desc: "RELÉ 24VDC 6A 5 PINOS (BOBINA)", category: "Materiais Elétricos", unitPrice: 24.00, schedule: [0, 0, 0, 0, 0, 0, 150, 150, 150, 150, 200, 0] },
+      { code: "541252", desc: "CHAVE PARTIDA SUAVE 3F 63A 3RW4037 SIEMENS", category: "Materiais Elétricos", unitPrice: 3811.00, schedule: [0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0] },
+      { code: "529054", desc: "CHAVE PARTIDA SUAVE 3F 45A 3RW4036 SIEMENS", category: "Materiais Elétricos", unitPrice: 3314.00, schedule: [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1] },
+      { code: "528325", desc: "DISJUNTOR MINI DIN 1P 25A 220/380V SIEMENS", category: "Materiais Elétricos", unitPrice: 11.00, schedule: [0, 0, 0, 0, 0, 0, 10, 10, 10, 10, 10, 10] },
+      { code: "287489", desc: "DISJUNTOR MOTOR 3P 7-10A 100KA 3RV2011", category: "Materiais Elétricos", unitPrice: 356.00, schedule: [0, 0, 0, 0, 0, 0, 3, 3, 3, 4, 4, 4] },
+      { code: "28784", desc: "Válvula de Controle e Amônia para Câmaras", category: "Manutenção Hidráulica", unitPrice: 1450.00, schedule: [0, 0, 0, 0, 0, 0, 2, 0, 0, 3, 0, 0] },
+      { code: "MEC-01", desc: "REVISÃO COMPRESSOR MAYCON 200", category: "Materiais Mecânicos", unitPrice: 8500.00, schedule: [0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0] },
+      { code: "MEC-02", desc: "Troca de corrente e trolley da nórea de escaldagem", category: "Materiais Mecânicos", unitPrice: 3200.00, schedule: [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0] },
+      { code: "SERV-01", desc: "Inspeção e Teste em Transformadores Industriais", category: "Serviços", unitPrice: 4500.00, schedule: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0] },
+      { code: "LUB-01", desc: "Óleo Sintético Especial para Girofreezer JBT", category: "Lubrificantes/Gases", unitPrice: 1850.00, schedule: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0] }
+    ];
+
+    let items = [];
+    let chartInstance = null;
+    let pendingConfirmAction = null;
+    let codeSearchTimeout = null;
+
+    function setFirebaseStatus(status, text) {
+      const badge = document.getElementById('firebaseStatusBadge');
+      if (!badge) return;
+      if (status === 'connected') {
+        badge.className = "hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-950/70 text-emerald-300 border border-emerald-800";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> ${text || 'Firebase Conectado'}`;
+      } else if (status === 'error') {
+        badge.className = "hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-rose-950/70 text-rose-300 border border-rose-800";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span> ${text || 'Erro Firebase'}`;
+      } else {
+        badge.className = "hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-950/70 text-amber-300 border border-amber-800";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> ${text || 'Conectando...'}`;
+      }
+    }
+
+    async function initFirebaseSync() {
+      try {
+        await signInAnonymously(auth);
+      } catch (authErr) {
+        console.warn("Autenticação anônima opcional:", authErr);
+      }
+
+      const itemsColRef = collection(db, ITEMS_COLLECTION);
+      onSnapshot(itemsColRef, (snapshot) => {
+        const loaded = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          loaded.push({
+            id: docSnap.id,
+            code: data.code || '',
+            desc: data.desc || '',
+            category: data.category || 'Materiais Elétricos',
+            unitPrice: Number(data.unitPrice) || 0,
+            schedule: Array.isArray(data.schedule) && data.schedule.length === 12 
+              ? data.schedule.map(v => Number(v) || 0) 
+              : new Array(12).fill(0)
+          });
+        });
+
+        loaded.sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
+
+        items = loaded;
+        setFirebaseStatus('connected', `Firebase: ${items.length} itens sincronizados`);
+        updateAll();
+      }, (error) => {
+        console.error("Erro no onSnapshot do Firestore:", error);
+        setFirebaseStatus('error', 'Sem conexão com o banco');
+        showToast("Erro ao conectar ao Firestore. Verifique as regras do banco.");
+      });
+    }
+
+    function formatBRL(val) {
+      return (val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    function escapeHtml(text) {
+      const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+      return String(text || '').replace(/[&<>"']/g, m => map[m]);
+    }
+
+    function updateAll() {
+      window.renderItemsTable();
+      window.renderMonthlyProgramTable();
+      renderConsolidatedMatrix();
+      updateKPIs();
+      updateChartData();
+    }
+
+    function updateKPIs() {
+      let totalAnual = 0;
+      let sem1 = 0;
+      let sem2 = 0;
+      let monthTotals = new Array(12).fill(0);
+
+      items.forEach(it => {
+        const price = Number(it.unitPrice) || 0;
+        it.schedule.forEach((qty, mIdx) => {
+          const cost = qty * price;
+          monthTotals[mIdx] += cost;
+          totalAnual += cost;
+          if (mIdx < 6) sem1 += cost;
+          else sem2 += cost;
+        });
+      });
+
+      document.getElementById('kpi-total-anual').textContent = formatBRL(totalAnual);
+      document.getElementById('kpi-semestre-1').textContent = formatBRL(sem1);
+      document.getElementById('kpi-semestre-2').textContent = formatBRL(sem2);
+      document.getElementById('kpi-total-itens').textContent = items.length;
+
+      const pctS1 = totalAnual > 0 ? ((sem1 / totalAnual) * 100).toFixed(1) : 0;
+      const pctS2 = totalAnual > 0 ? ((sem2 / totalAnual) * 100).toFixed(1) : 0;
+      document.getElementById('kpi-pct-s1').textContent = `${pctS1}% do orçamento total`;
+      document.getElementById('kpi-pct-s2').textContent = `${pctS2}% do orçamento total`;
+
+      let maxMonthVal = -1;
+      let maxMonthIdx = 0;
+      monthTotals.forEach((val, idx) => {
+        if (val > maxMonthVal) {
+          maxMonthVal = val;
+          maxMonthIdx = idx;
+        }
+      });
+
+      if (maxMonthVal > 0) {
+        document.getElementById('kpi-mes-pico').textContent = MONTHS[maxMonthIdx];
+        document.getElementById('kpi-mes-pico-valor').textContent = `Pico de ${formatBRL(maxMonthVal)}`;
+      } else {
+        document.getElementById('kpi-mes-pico').textContent = "-";
+        document.getElementById('kpi-mes-pico-valor').textContent = "R$ 0,00";
+      }
+
+      document.getElementById('chart-total-tag').textContent = formatBRL(totalAnual);
+    }
+
+    // ==========================================================
+    // CONSULTA DO ITEM NA COLEÇÃO 'PRODUTOS' (BANCO DE ESTOQUE)
+    // ==========================================================
+    window.consultarEstoquePorCodigo = async function() {
+      const codeInput = document.getElementById('form-item-code');
+      const badge = document.getElementById('estoqueStatusBadge');
+      const icon = document.getElementById('iconeBuscaEstoque');
+      const docIdInput = document.getElementById('form-estoque-doc-id');
+      const code = (codeInput.value || '').trim();
+
+      if (!code) {
+        badge.innerHTML = '';
+        docIdInput.value = '';
+        return;
+      }
+
+      icon.className = "fa-solid fa-spinner animate-spin text-sky-400";
+      badge.className = "text-[10px] text-sky-400 font-normal";
+      badge.innerHTML = "Buscando...";
+
+      try {
+        const q = query(
+          collection(db, ESTOQUE_COLLECTION),
+          where("codigo", "==", code),
+          limit(1)
+        );
+        const snapshot = await getDocs(q);
+
+        if (!snapshot.empty) {
+          const docSnap = snapshot.docs[0];
+          const prod = docSnap.data();
+
+          docIdInput.value = docSnap.id;
+
+          const descInput = document.getElementById('form-item-desc');
+          const priceInput = document.getElementById('form-item-price');
+
+          descInput.value = prod.nome || prod.material || descInput.value;
+          priceInput.value = Number(prod.valor || 0).toFixed(2);
+
+          badge.className = "text-[10px] text-emerald-400 font-semibold";
+          badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> Encontrado no Estoque`;
+          showToast(`Item "${code}" carregado do Estoque!`);
+        } else {
+          docIdInput.value = '';
+          badge.className = "text-[10px] text-amber-400 font-normal";
+          badge.innerHTML = `<i class="fa-solid fa-circle-info"></i> Não cadastrado no Estoque`;
+        }
+      } catch (err) {
+        console.error("Erro na busca de estoque:", err);
+        badge.className = "text-[10px] text-rose-400 font-normal";
+        badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Falha na consulta`;
+      } finally {
+        icon.className = "fa-solid fa-magnifying-glass";
+      }
+    };
+
+    // Aciona a busca automática conforme o usuário digita o código
+    document.getElementById('form-item-code').addEventListener('input', (e) => {
+      clearTimeout(codeSearchTimeout);
+      const val = e.target.value.trim();
+      if (val.length >= 3) {
+        codeSearchTimeout = setTimeout(() => {
+          window.consultarEstoquePorCodigo();
+        }, 500);
+      } else {
+        document.getElementById('estoqueStatusBadge').innerHTML = '';
+        document.getElementById('form-estoque-doc-id').value = '';
+      }
+    });
+
+    // ==========================================================
+    // RENDERIZAÇÃO DA GRADE ANUAL
+    // ==========================================================
+    window.renderItemsTable = function() {
+      const tbody = document.getElementById('itemsTableBody');
+      const search = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+      const filterCat = document.getElementById('categoryFilter')?.value || 'TODAS';
+
+      const filtered = items.filter(it => {
+        const matchSearch = it.code.toLowerCase().includes(search) || it.desc.toLowerCase().includes(search);
+        const itemCat = (it.category || '').toLowerCase().trim();
+        const targetCat = filterCat.toLowerCase().trim();
+        const matchCat = (filterCat === 'TODAS') || itemCat.includes(targetCat) || targetCat.includes(itemCat);
+        return matchSearch && matchCat;
+      });
+
+      document.getElementById('filtered-count').textContent = `${filtered.length} de ${items.length} itens listados`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="18" class="p-10 text-center text-slate-500">
+              <div class="flex flex-col items-center justify-center gap-2">
+                <i class="fa-solid fa-box-open text-3xl text-slate-600"></i>
+                <p class="font-medium text-slate-400">Nenhum item encontrado para a disciplina selecionada.</p>
+                <p class="text-xs text-slate-500">Verifique os filtros ou selecione "Todas as Disciplinas".</p>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(item => {
+        const totalQty = item.schedule.reduce((a, b) => a + Number(b || 0), 0);
+        const totalCost = totalQty * Number(item.unitPrice || 0);
+
+        const monthCols = item.schedule.map((qty, mIdx) => {
+          const isS2 = mIdx >= 6;
+          return `
+            <td class="p-1 text-center ${isS2 ? 'bg-indigo-950/20' : ''}">
+              <input type="number" min="0" value="${qty}" 
+                data-item-id="${item.id}"
+                data-month="${mIdx}"
+                class="qty-input w-12 text-center bg-slate-950/80 border border-slate-700/80 rounded px-1 py-1 text-xs text-slate-100 table-input font-mono focus:border-sky-400">
+            </td>
+          `;
+        }).join('');
+
+        return `
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="p-3 font-mono font-semibold text-sky-400 sticky left-0 bg-slate-900/95 z-10 border-r border-slate-800">
+              ${escapeHtml(item.code)}
+            </td>
+            <td class="p-3 font-medium text-slate-200">
+              ${escapeHtml(item.desc)}
+            </td>
+            <td class="p-3">
+              <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700 whitespace-nowrap">
+                ${item.category}
+              </span>
+            </td>
+            <td class="p-3 text-right font-mono text-slate-300">
+              ${formatBRL(item.unitPrice)}
+            </td>
+            ${monthCols}
+            <td class="p-3 text-center font-mono font-bold text-slate-300">
+              ${totalQty}
+            </td>
+            <td class="p-3 text-right font-mono font-bold text-emerald-400">
+              ${formatBRL(totalCost)}
+            </td>
+            <td class="p-3 text-center whitespace-nowrap">
+              <button data-action="edit" data-id="${item.id}" title="Editar" class="p-1 text-slate-400 hover:text-sky-400 transition mx-0.5">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              <button data-action="delete" data-id="${item.id}" title="Excluir" class="p-1 text-slate-400 hover:text-rose-400 transition mx-0.5">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    };
+
+    // ==========================================================
+    // RENDERIZAÇÃO DA VISÃO MENSAL COM FILTRO POR DISCIPLINA
+    // ==========================================================
+    window.renderMonthlyProgramTable = function() {
+      const selectMonth = document.getElementById('selectMonthFilter');
+      if (!selectMonth) return;
+
+      const mIdx = parseInt(selectMonth.value, 10);
+      const catFilter = document.getElementById('monthlyCategoryFilter')?.value || 'TODAS';
+      const tbody = document.getElementById('monthlyTableBody');
+
+      const programmedItems = items.filter(it => {
+        const hasQty = (it.schedule[mIdx] || 0) > 0;
+        const itemCat = (it.category || '').toLowerCase().trim();
+        const targetCat = catFilter.toLowerCase().trim();
+        const matchCat = (catFilter === 'TODAS') || itemCat.includes(targetCat) || targetCat.includes(itemCat);
+        return hasQty && matchCat;
+      });
+
+      let totalMes = 0;
+      programmedItems.forEach(it => {
+        totalMes += (it.schedule[mIdx] || 0) * (it.unitPrice || 0);
+      });
+
+      document.getElementById('monthly-selected-total').textContent = formatBRL(totalMes);
+      document.getElementById('monthly-selected-count').textContent = programmedItems.length;
+      document.getElementById('monthly-table-summary').textContent = `${programmedItems.length} item(ns) a comprar em ${MONTHS[mIdx]}`;
+
+      if (programmedItems.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="p-8 text-center text-slate-500">
+              <div class="flex flex-col items-center justify-center gap-2">
+                <i class="fa-regular fa-calendar-xmark text-3xl text-slate-600"></i>
+                <p class="font-medium text-slate-400">Nenhuma compra de "${catFilter === 'TODAS' ? 'itens' : catFilter}" programada para ${MONTHS[mIdx]}.</p>
+                <p class="text-xs text-slate-500">Escolha outra disciplina ou altere o mês de referência acima.</p>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = programmedItems.map(item => {
+        const qtyInMonth = item.schedule[mIdx] || 0;
+        const subtotal = qtyInMonth * item.unitPrice;
+
+        return `
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="p-3 font-mono font-semibold text-sky-400">
+              ${escapeHtml(item.code)}
+            </td>
+            <td class="p-3 font-medium text-slate-200">
+              ${escapeHtml(item.desc)}
+            </td>
+            <td class="p-3">
+              <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700 whitespace-nowrap">
+                ${item.category}
+              </span>
+            </td>
+            <td class="p-3 text-right font-mono text-slate-300">
+              ${formatBRL(item.unitPrice)}
+            </td>
+            <td class="p-3 text-center bg-sky-950/20">
+              <div class="inline-flex items-center justify-center gap-1.5">
+                <button onclick="quickAdjustQty('${item.id}', ${mIdx}, -1)" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition font-bold" title="Diminuir 1">
+                  -
+                </button>
+                <input type="number" min="0" value="${qtyInMonth}" 
+                  data-item-id="${item.id}"
+                  data-month="${mIdx}"
+                  class="qty-input w-16 text-center bg-slate-950 border border-sky-600/70 rounded py-1 text-xs text-white font-mono font-bold">
+                <button onclick="quickAdjustQty('${item.id}', ${mIdx}, 1)" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition font-bold" title="Aumentar 1">
+                  +
+                </button>
+              </div>
+            </td>
+            <td class="p-3 text-right font-mono font-bold text-emerald-400">
+              ${formatBRL(subtotal)}
+            </td>
+            <td class="p-3 text-center whitespace-nowrap">
+              <button onclick="openTransferModal('${item.id}', ${mIdx})" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-sky-950 hover:bg-sky-900 text-sky-300 border border-sky-800 flex items-center justify-center gap-1 mx-auto transition shadow-sm">
+                <i class="fa-solid fa-arrow-right-arrow-left"></i> <span>Trocar Mês</span>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    };
+
+    window.changeSelectedMonth = function(delta) {
+      const selectMonth = document.getElementById('selectMonthFilter');
+      let current = parseInt(selectMonth.value, 10);
+      current = (current + delta + 12) % 12;
+      selectMonth.value = current;
+      window.renderMonthlyProgramTable();
+    };
+
+    window.quickAdjustQty = function(itemId, mIdx, change) {
+      const item = items.find(i => i.id === itemId);
+      if (!item) return;
+
+      const currentQty = item.schedule[mIdx] || 0;
+      const newQty = Math.max(0, currentQty + change);
+      saveScheduleChangeToFirestore(itemId, mIdx, newQty);
+    };
+
+    // ==========================================================
+    // MODAL DE REMANEJAMENTO RÁPIDO ENTRE MESES
+    // ==========================================================
+    window.openTransferModal = function(itemId, fromMonthIdx) {
+      const item = items.find(i => i.id === itemId);
+      if (!item) return;
+
+      const currentQty = item.schedule[fromMonthIdx] || 0;
+
+      document.getElementById('transfer-item-id').value = item.id;
+      document.getElementById('transfer-from-month').value = fromMonthIdx;
+      document.getElementById('transfer-from-month-name').value = MONTHS[fromMonthIdx];
+      document.getElementById('transfer-item-code').textContent = item.code;
+      document.getElementById('transfer-item-desc').textContent = item.desc;
+      document.getElementById('transfer-item-price').textContent = formatBRL(item.unitPrice);
+      document.getElementById('transfer-max-qty').textContent = currentQty;
+
+      const qtyInput = document.getElementById('transfer-qty');
+      qtyInput.max = currentQty;
+      qtyInput.value = currentQty;
+
+      const toSelect = document.getElementById('transfer-to-month');
+      toSelect.innerHTML = MONTHS.map((m, idx) => {
+        if (idx === fromMonthIdx) return '';
+        return `<option value="${idx}">${m}</option>`;
+      }).join('');
+
+      document.getElementById('transferModal').classList.remove('hidden');
+    };
+
+    window.closeTransferModal = function() {
+      document.getElementById('transferModal').classList.add('hidden');
+    };
+
+    window.confirmTransferMonth = async function() {
+      const itemId = document.getElementById('transfer-item-id').value;
+      const fromIdx = parseInt(document.getElementById('transfer-from-month').value, 10);
+      const toIdx = parseInt(document.getElementById('transfer-to-month').value, 10);
+      const qty = parseInt(document.getElementById('transfer-qty').value, 10) || 0;
+
+      const item = items.find(i => i.id === itemId);
+      if (!item) return;
+
+      if (qty <= 0 || qty > (item.schedule[fromIdx] || 0)) {
+        showToast("Quantidade inválida para transferência.");
+        return;
+      }
+
+      const updatedSchedule = [...item.schedule];
+      updatedSchedule[fromIdx] -= qty;
+      updatedSchedule[toIdx] = (updatedSchedule[toIdx] || 0) + qty;
+
+      const btn = document.getElementById('btnConfirmTransfer');
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Transferindo...`;
+
+      try {
+        const docRef = doc(db, ITEMS_COLLECTION, itemId);
+        await updateDoc(docRef, {
+          schedule: updatedSchedule,
+          updatedAt: serverTimestamp()
+        });
+
+        closeTransferModal();
+        showToast(`Movido: ${qty}x ${item.code} de ${MONTHS[fromIdx]} para ${MONTHS[toIdx]}!`);
+      } catch (err) {
+        console.error("Erro ao transferir:", err);
+        showToast("Erro ao sincronizar com o Firebase.");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-check"></i> Confirmar Transferência`;
+      }
+    };
+
+    // Input direto de quantidade salvando no Firestore
+    document.addEventListener('change', (e) => {
+      if (e.target && e.target.classList.contains('qty-input')) {
+        const itemId = e.target.getAttribute('data-item-id');
+        const mIdx = parseInt(e.target.getAttribute('data-month'), 10);
+        const newQty = Math.max(0, parseInt(e.target.value, 10) || 0);
+
+        saveScheduleChangeToFirestore(itemId, mIdx, newQty);
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+
+      const action = btn.getAttribute('data-action');
+      const id = btn.getAttribute('data-id');
+
+      if (action === 'edit') {
+        openItemModal(id);
+      } else if (action === 'delete') {
+        confirmDeleteItem(id);
+      }
+    });
+
+    async function saveScheduleChangeToFirestore(itemId, monthIdx, newQty) {
+      const item = items.find(i => i.id === itemId);
+      if (!item) return;
+
+      const updatedSchedule = [...item.schedule];
+      updatedSchedule[monthIdx] = newQty;
+
+      try {
+        const docRef = doc(db, ITEMS_COLLECTION, itemId);
+        await updateDoc(docRef, {
+          schedule: updatedSchedule,
+          updatedAt: serverTimestamp()
+        });
+        showToast(`Atualizado ${MONTHS[monthIdx]} (${item.code}) no Firestore!`);
+      } catch (err) {
+        console.error("Erro ao atualizar mês:", err);
+        showToast("Erro ao sincronizar com o Firebase.");
+      }
+    }
+
+    // Carga Automática do Catálogo Predefinido da Planilha
+    window.importPredefinedCatalog = async function() {
+      const btn = document.getElementById('btnImportCatalog');
+      const origText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Importando...`;
+
+      try {
+        const existingCodes = new Set(items.map(it => it.code.trim()));
+        const toAdd = INDUSTRIAL_CATALOG.filter(it => !existingCodes.has(it.code.trim()));
+
+        if (toAdd.length === 0) {
+          showToast("Todos os itens da planilha já estão cadastrados!");
+          btn.disabled = false;
+          btn.innerHTML = origText;
+          return;
+        }
+
+        const batch = writeBatch(db);
+        const colRef = collection(db, ITEMS_COLLECTION);
+
+        toAdd.forEach(item => {
+          const newDocRef = doc(colRef);
+          batch.set(newDocRef, {
+            code: item.code,
+            desc: item.desc,
+            category: item.category,
+            unitPrice: item.unitPrice,
+            schedule: item.schedule,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+        });
+
+        await batch.commit();
+        showToast(`${toAdd.length} itens da planilha importados com sucesso para a nuvem!`);
+      } catch (err) {
+        console.error("Erro ao importar catálogo:", err);
+        showToast("Erro ao importar catálogo no Firebase.");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = origText;
+      }
+    };
+
+    function renderConsolidatedMatrix() {
+      const tbody = document.getElementById('consolidatedMatrixBody');
+      const foot = document.getElementById('consolidatedTotalRow');
+
+      let grandTotals = new Array(12).fill(0);
+      let grandYearTotal = 0;
+
+      let html = '';
+
+      CATEGORIES.forEach(cat => {
+        const catItems = items.filter(i => (i.category || '').toLowerCase().trim() === cat.toLowerCase().trim());
+        let catMonthTotals = new Array(12).fill(0);
+        let catYearTotal = 0;
+
+        catItems.forEach(it => {
+          const price = Number(it.unitPrice) || 0;
+          it.schedule.forEach((q, mIdx) => {
+            const cost = q * price;
+            catMonthTotals[mIdx] += cost;
+            catYearTotal += cost;
+            grandTotals[mIdx] += cost;
+            grandYearTotal += cost;
+          });
+        });
+
+        html += `
+          <tr class="hover:bg-slate-800/30 transition">
+            <td class="p-3 font-semibold text-slate-200 sticky left-0 bg-slate-900 border-r border-slate-800">
+              <i class="fa-solid fa-folder text-sky-400/70 mr-1.5"></i> ${cat}
+            </td>
+            ${catMonthTotals.map((val, idx) => `
+              <td class="p-3 text-right font-mono ${idx >= 6 ? 'bg-indigo-950/20 text-indigo-200' : 'text-slate-300'}">
+                ${formatBRL(val)}
+              </td>
+            `).join('')}
+            <td class="p-3 text-right font-mono font-bold text-sky-300 bg-slate-950/60">
+              ${formatBRL(catYearTotal)}
+            </td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
+
+      foot.innerHTML = `
+        <td class="p-3 font-bold text-sky-400 sticky left-0 bg-slate-950 border-r border-slate-800 uppercase">
+          TOTAL MENSAL:
+        </td>
+        ${grandTotals.map((val, idx) => `
+          <td class="p-3 text-right font-mono font-bold ${idx >= 6 ? 'text-indigo-300 bg-indigo-950/30' : 'text-white'}">
+            ${formatBRL(val)}
+          </td>
+        `).join('')}
+        <td class="p-3 text-right font-mono font-extrabold text-emerald-400 bg-slate-900 text-sm">
+          ${formatBRL(grandYearTotal)}
+        </td>
+      `;
+    }
+
+    function initChart() {
+      const ctx = document.getElementById('monthlyExpensesChart').getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+          datasets: [{
+            label: 'Total Previsto (R$)',
+            data: new Array(12).fill(0),
+            backgroundColor: [
+              '#0284c7', '#0284c7', '#0284c7', '#0284c7', '#0284c7', '#0284c7',
+              '#6366f1', '#6366f1', '#6366f1', '#6366f1', '#6366f1', '#6366f1'
+            ],
+            borderRadius: 6,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return ' Total: ' + formatBRL(context.raw);
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(51, 65, 85, 0.4)' },
+              ticks: {
+                color: '#94a3b8',
+                callback: function(val) {
+                  return 'R$ ' + (val / 1000).toFixed(0) + 'k';
+                }
+              }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { color: '#94a3b8' }
+            }
+          }
+        }
+      });
+    }
+
+    function updateChartData() {
+      if (!chartInstance) return;
+      const monthTotals = new Array(12).fill(0);
+      items.forEach(it => {
+        const price = Number(it.unitPrice) || 0;
+        it.schedule.forEach((q, idx) => {
+          monthTotals[idx] += q * price;
+        });
+      });
+      chartInstance.data.datasets[0].data = monthTotals;
+      chartInstance.update();
+    }
+
+    window.openItemModal = function(itemId = null) {
+      const modal = document.getElementById('itemModal');
+      const form = document.getElementById('itemForm');
+      form.reset();
+      document.getElementById('estoqueStatusBadge').innerHTML = '';
+      document.getElementById('form-estoque-doc-id').value = '';
+
+      if (itemId) {
+        const item = items.find(i => i.id === itemId);
+        if (item) {
+          document.getElementById('modalTitle').innerHTML = `<i class="fa-solid fa-pen-to-square text-sky-500"></i> Editar Item (${escapeHtml(item.code)})`;
+          document.getElementById('form-item-id').value = item.id;
+          document.getElementById('form-item-code').value = item.code;
+          document.getElementById('form-item-desc').value = item.desc;
+          document.getElementById('form-item-category').value = item.category;
+          document.getElementById('form-item-price').value = item.unitPrice;
+          item.schedule.forEach((q, idx) => {
+            const inp = document.getElementById(`month-${idx}`);
+            if (inp) inp.value = q;
+          });
+          // Busca o status do item no estoque
+          window.consultarEstoquePorCodigo();
+        }
+      } else {
+        document.getElementById('modalTitle').innerHTML = `<i class="fa-solid fa-box text-sky-500"></i> Cadastrar Item para Programação`;
+        document.getElementById('form-item-id').value = '';
+        for (let idx = 0; idx < 12; idx++) {
+          const inp = document.getElementById(`month-${idx}`);
+          if (inp) inp.value = 0;
+        }
+      }
+
+      modal.classList.remove('hidden');
+    };
+
+    window.closeItemModal = function() {
+      document.getElementById('itemModal').classList.add('hidden');
+    };
+
+    window.handleSaveItem = async function(e) {
+      e.preventDefault();
+      const saveBtn = document.getElementById('saveItemBtn');
+      const originalText = saveBtn.innerHTML;
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Salvando...`;
+
+      try {
+        const id = document.getElementById('form-item-id').value;
+        const code = document.getElementById('form-item-code').value.trim();
+        const desc = document.getElementById('form-item-desc').value.trim();
+        const category = document.getElementById('form-item-category').value;
+        const unitPrice = parseFloat(document.getElementById('form-item-price').value) || 0;
+        const syncEstoque = document.getElementById('syncWithEstoqueCheckbox').checked;
+        const estoqueDocId = document.getElementById('form-estoque-doc-id').value;
+
+        const schedule = [];
+        for (let i = 0; i < 12; i++) {
+          schedule.push(parseInt(document.getElementById(`month-${i}`).value, 10) || 0);
+        }
+
+        const payload = {
+          code,
+          desc,
+          category,
+          unitPrice,
+          schedule,
+          updatedAt: serverTimestamp()
+        };
+
+        // 1. Salva ou atualiza no Budget
+        if (id) {
+          const docRef = doc(db, ITEMS_COLLECTION, id);
+          await updateDoc(docRef, payload);
+          showToast(`Item ${code} atualizado no Budget!`);
+        } else {
+          payload.createdAt = serverTimestamp();
+          await addDoc(collection(db, ITEMS_COLLECTION), payload);
+          showToast(`Item ${code} salvo no Budget!`);
+        }
+
+        // 2. Sincroniza com a coleção oficial de 'produtos' (Estoque) se selecionado
+        if (syncEstoque && code) {
+          try {
+            if (estoqueDocId) {
+              // Já existe na base de estoque -> atualiza nome e valor
+              await updateDoc(doc(db, ESTOQUE_COLLECTION, estoqueDocId), {
+                nome: desc.toUpperCase(),
+                valor: unitPrice
+              });
+            } else {
+              // Não existe na base de estoque -> verifica se foi criado ou cria um novo registro
+              const checkQ = query(collection(db, ESTOQUE_COLLECTION), where("codigo", "==", code), limit(1));
+              const checkSnap = await getDocs(checkQ);
+
+              if (!checkSnap.empty) {
+                await updateDoc(doc(db, ESTOQUE_COLLECTION, checkSnap.docs[0].id), {
+                  nome: desc.toUpperCase(),
+                  valor: unitPrice
+                });
+              } else {
+                await addDoc(collection(db, ESTOQUE_COLLECTION), {
+                  codigo: code,
+                  nome: desc.toUpperCase(),
+                  fornecedor: "",
+                  localUso: category,
+                  valor: unitPrice,
+                  dataCriacao: new Date()
+                });
+              }
+            }
+          } catch (syncErr) {
+            console.warn("Aviso ao sincronizar com coleção 'produtos':", syncErr);
+          }
+        }
+
+        closeItemModal();
+      } catch (err) {
+        console.error("Erro ao salvar no Firestore:", err);
+        showToast("Erro ao gravar item no Firebase.");
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+      }
+    };
+
+    function showConfirmModal(title, desc, onConfirm) {
+      document.getElementById('confirmModalTitle').textContent = title;
+      document.getElementById('confirmModalDesc').textContent = desc;
+      pendingConfirmAction = onConfirm;
+      document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    window.closeConfirmModal = function() {
+      document.getElementById('confirmModal').classList.add('hidden');
+      pendingConfirmAction = null;
+    };
+
+    document.getElementById('confirmModalActionBtn').addEventListener('click', async () => {
+      if (typeof pendingConfirmAction === 'function') {
+        const fn = pendingConfirmAction;
+        closeConfirmModal();
+        await fn();
+      }
+    });
+
+    function confirmDeleteItem(id) {
+      const it = items.find(i => i.id === id);
+      const name = it ? it.code : 'item';
+      showConfirmModal(
+        `Excluir ${name}?`,
+        `Deseja realmente remover o código "${name}" permanentemente do Firestore?`,
+        async () => {
+          try {
+            await deleteDoc(doc(db, ITEMS_COLLECTION, id));
+            showToast(`Item ${name} excluído do banco!`);
+          } catch (err) {
+            console.error("Erro ao excluir:", err);
+            showToast("Erro ao remover o item.");
+          }
+        }
+      );
+    }
+
+    window.confirmClearDatabase = function() {
+      if (items.length === 0) {
+        showToast("A base de dados já está limpa!");
+        return;
+      }
+      showConfirmModal(
+        "Limpar Base de Dados?",
+        `Atenção: Todos os ${items.length} itens cadastrados no projeto Firebase 'eletrica-8c96e' serão removidos permanentemente.`,
+        async () => {
+          try {
+            const colRef = collection(db, ITEMS_COLLECTION);
+            const snapshot = await getDocs(colRef);
+            const promises = snapshot.docs.map(docSnap => deleteDoc(docSnap.ref));
+            await Promise.all(promises);
+            showToast("Base de dados limpa com sucesso!");
+          } catch (err) {
+            console.error("Erro ao limpar banco:", err);
+            showToast("Erro ao tentar limpar o banco.");
+          }
+        }
+      );
+    };
+
+    window.switchTab = function(tab) {
+      const btnItens = document.getElementById('tab-btn-itens');
+      const btnMensal = document.getElementById('tab-btn-mensal');
+      const btnResumo = document.getElementById('tab-btn-resumo');
+
+      const tabItens = document.getElementById('tab-content-itens');
+      const tabMensal = document.getElementById('tab-content-mensal');
+      const tabResumo = document.getElementById('tab-content-resumo');
+
+      [btnItens, btnMensal, btnResumo].forEach(b => {
+        b.classList.remove('border-sky-500', 'text-sky-400');
+        b.classList.add('border-transparent', 'text-slate-400');
+      });
+
+      [tabItens, tabMensal, tabResumo].forEach(t => t.classList.add('hidden'));
+
+      if (tab === 'itens') {
+        btnItens.classList.add('border-sky-500', 'text-sky-400');
+        btnItens.classList.remove('border-transparent', 'text-slate-400');
+        tabItens.classList.remove('hidden');
+        window.renderItemsTable();
+      } else if (tab === 'mensal') {
+        btnMensal.classList.add('border-sky-500', 'text-sky-400');
+        btnMensal.classList.remove('border-transparent', 'text-slate-400');
+        tabMensal.classList.remove('hidden');
+        window.renderMonthlyProgramTable();
+      } else {
+        btnResumo.classList.add('border-sky-500', 'text-sky-400');
+        btnResumo.classList.remove('border-transparent', 'text-slate-400');
+        tabResumo.classList.remove('hidden');
+        renderConsolidatedMatrix();
+      }
+    };
+
+    // ========================================================
+    // MÓDULO INTELIGENTE: SUGESTÃO E BALANCEAMENTO DE GASTOS
+    // ========================================================
+    window.openBalanceModal = function() {
+      if (!items || items.length === 0) {
+        showToast("Cadastre ou carregue itens antes de balancear o orçamento.");
+        return;
+      }
+
+      let monthTotals = new Array(12).fill(0);
+      let totalAnual = 0;
+
+      items.forEach(it => {
+        const price = Number(it.unitPrice) || 0;
+        it.schedule.forEach((qty, mIdx) => {
+          const cost = qty * price;
+          monthTotals[mIdx] += cost;
+          totalAnual += cost;
+        });
+      });
+
+      const mediaMensal = totalAnual / 12;
+      document.getElementById('bal-media-mensal').textContent = formatBRL(mediaMensal);
+
+      const mesesComExcesso = [];
+      const mesesComFolga = [];
+
+      monthTotals.forEach((total, idx) => {
+        const diff = total - mediaMensal;
+        if (diff > mediaMensal * 0.15) {
+          mesesComExcesso.push({ idx, nome: MONTHS[idx], total, excesso: diff });
+        } else if (diff < -mediaMensal * 0.15) {
+          mesesComFolga.push({ idx, nome: MONTHS[idx], total, folga: Math.abs(diff) });
+        }
+      });
+
+      mesesComExcesso.sort((a, b) => b.excesso - a.excesso);
+      mesesComFolga.sort((a, b) => b.folga - a.folga);
+
+      if (mesesComExcesso.length > 0) {
+        document.getElementById('bal-mes-critico').textContent = mesesComExcesso[0].nome;
+        document.getElementById('bal-mes-critico-val').textContent = `+${formatBRL(mesesComExcesso[0].excesso)} acima da média`;
+      } else {
+        document.getElementById('bal-mes-critico').textContent = "Equilibrado";
+        document.getElementById('bal-mes-critico-val').textContent = "Sem picos severos";
+      }
+
+      if (mesesComFolga.length > 0) {
+        document.getElementById('bal-mes-alivio').textContent = mesesComFolga[0].nome;
+        document.getElementById('bal-mes-alivio-val').textContent = `${formatBRL(mesesComFolga[0].folga)} de margem livre`;
+      } else {
+        document.getElementById('bal-mes-alivio').textContent = "Estável";
+        document.getElementById('bal-mes-alivio-val').textContent = "Distribuição homogênea";
+      }
+
+      const container = document.getElementById('suggestionsContainer');
+
+      if (mesesComExcesso.length === 0 || mesesComFolga.length === 0) {
+        container.innerHTML = `
+          <div class="p-6 bg-slate-950 border border-slate-800 rounded-xl text-center text-slate-400">
+            <i class="fa-solid fa-circle-check text-emerald-400 text-3xl mb-2"></i>
+            <p class="font-medium text-white text-sm">Orçamento bem equalizado!</p>
+            <p class="text-xs text-slate-500 mt-1">Nenhum mês apresenta concentração excessiva fora do desvio operacional médio.</p>
+          </div>
+        `;
+        document.getElementById('balanceModal').classList.remove('hidden');
+        return;
+      }
+
+      const sugestoes = [];
+
+      mesesComExcesso.forEach(pico => {
+        const candidatos = items
+          .filter(it => it.schedule[pico.idx] > 0)
+          .map(it => ({
+            item: it,
+            qtdNoMes: it.schedule[pico.idx],
+            custoNoMes: it.schedule[pico.idx] * it.unitPrice,
+            unitPrice: it.unitPrice
+          }))
+          .sort((a, b) => b.custoNoMes - a.custoNoMes);
+
+        candidatos.forEach(cand => {
+          for (const folga of mesesComFolga) {
+            if (folga.folga > cand.unitPrice && cand.qtdNoMes > 0) {
+              const qtdSugerida = Math.min(
+                cand.qtdNoMes,
+                Math.max(1, Math.floor(folga.folga / cand.unitPrice))
+              );
+
+              const impactoFinanceiro = qtdSugerida * cand.unitPrice;
+
+              sugestoes.push({
+                itemId: cand.item.id,
+                code: cand.item.code,
+                desc: cand.item.desc,
+                fromMonthIdx: pico.idx,
+                fromMonthName: pico.nome,
+                toMonthIdx: folga.idx,
+                toMonthName: folga.nome,
+                qtd: qtdSugerida,
+                valorEconomizado: impactoFinanceiro,
+                motivo: `Alivia a concentração de ${pico.nome} aproveitando a margem livre de ${folga.nome}.`
+              });
+
+              folga.folga -= impactoFinanceiro;
+              break;
+            }
+          }
+        });
+      });
+
+      if (sugestoes.length === 0) {
+        container.innerHTML = `
+          <div class="p-4 bg-slate-950 border border-slate-800 rounded-xl text-center text-slate-400 text-xs">
+            Existem oscilações sazonais, mas os valores unitários dos itens programados no mês crítico superam a margem disponível dos meses receptores.
+          </div>
+        `;
+      } else {
+        container.innerHTML = sugestoes.slice(0, 6).map((sug) => `
+          <div class="bg-slate-950 border border-slate-800/90 hover:border-violet-600/50 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-sky-950 text-sky-400 border border-sky-800">
+                  ${escapeHtml(sug.code)}
+                </span>
+                <span class="text-xs font-semibold text-white">
+                  ${escapeHtml(sug.desc)}
+                </span>
+              </div>
+              <p class="text-xs text-slate-400 flex items-center gap-1.5 flex-wrap">
+                <span>Mover <strong>${sug.qtd}x</strong> de <span class="text-rose-400 font-semibold">${sug.fromMonthName}</span> para <span class="text-emerald-400 font-semibold">${sug.toMonthName}</span></span>
+                <span class="text-slate-600">•</span>
+                <span class="text-violet-300 font-mono font-medium">Impacto: ${formatBRL(sug.valorEconomizado)}</span>
+              </p>
+              <p class="text-[11px] text-slate-500 italic">${sug.motivo}</p>
+            </div>
+
+            <button onclick="aplicarRemanejamento('${sug.itemId}', ${sug.fromMonthIdx}, ${sug.toMonthIdx}, ${sug.qtd})" 
+              class="w-full sm:w-auto px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600 hover:bg-violet-500 text-white shadow-md shadow-violet-600/30 flex items-center justify-center gap-1.5 transition whitespace-nowrap">
+              <i class="fa-solid fa-arrow-right-arrow-left"></i> Aplicar Sugestão
+            </button>
+          </div>
+        `).join('');
+      }
+
+      document.getElementById('balanceModal').classList.remove('hidden');
+    };
+
+    window.closeBalanceModal = function() {
+      document.getElementById('balanceModal').classList.add('hidden');
+    };
+
+    window.aplicarRemanejamento = async function(itemId, fromIdx, toIdx, qtd) {
+      const item = items.find(i => i.id === itemId);
+      if (!item) return;
+
+      if (item.schedule[fromIdx] < qtd) {
+        showToast("A quantidade atual no mês de origem mudou.");
+        return;
+      }
+
+      const updatedSchedule = [...item.schedule];
+      updatedSchedule[fromIdx] -= qtd;
+      updatedSchedule[toIdx] += qtd;
+
+      try {
+        const docRef = doc(db, ITEMS_COLLECTION, itemId);
+        await updateDoc(docRef, {
+          schedule: updatedSchedule,
+          updatedAt: serverTimestamp()
+        });
+
+        showToast(`Remanejado: ${qtd}x ${item.code} movido para ${MONTHS[toIdx]}!`);
+        window.openBalanceModal();
+      } catch (err) {
+        console.error("Erro ao aplicar remanejamento:", err);
+        showToast("Falha ao salvar balanceamento no Firebase.");
+      }
+    };
+
+    window.exportCSV = function() {
+      if (items.length === 0) {
+        showToast("Não há itens para exportar.");
+        return;
+      }
+      let csv = 'Código;Descrição;Categoria;Valor Unitário (R$);Jan Qtd;Fev Qtd;Mar Qtd;Abr Qtd;Mai Qtd;Jun Qtd;Jul Qtd;Ago Qtd;Set Qtd;Out Qtd;Nov Qtd;Dez Qtd;Qtd Total;Custo Total Anual (R$)\n';
+      
+      items.forEach(it => {
+        const totalQty = it.schedule.reduce((a, b) => a + Number(b), 0);
+        const totalCost = (totalQty * it.unitPrice).toFixed(2);
+        const row = [
+          `"${it.code}"`,
+          `"${it.desc.replace(/"/g, '""')}"`,
+          `"${it.category}"`,
+          it.unitPrice.toFixed(2),
+          ...it.schedule,
+          totalQty,
+          totalCost
+        ].join(';');
+        csv += row + '\n';
+      });
+
+      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Budget_Manutencao_Firebase_${new Date().getFullYear()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('Arquivo CSV baixado com sucesso!');
+    };
+
+    window.openPythonModal = function() {
+      const jsonStr = JSON.stringify(items, null, 2);
+      const pythonScript = `"""
+AUTOMAÇÃO DO ORÇAMENTO ANUAL DE MANUTENÇÃO (FIREBASE DATA)
+Projeto: eletrica-8c96e | Coleção: budget_itens
+Gera a planilha Excel (.xlsx) com a Matriz Consolidada e Itens Detalhados.
+
+Requisitos:
+    pip install pandas openpyxl
+"""
+
+import json
+import pandas as pd
+
+# Dados extraídos em tempo real do Firestore
+DADOS_JSON = '''${jsonStr}'''
+
+def gerar_planilha_budget():
+    items = json.loads(DADOS_JSON)
+    if not items:
+        print("Nenhum item encontrado para exportar.")
+        return
+
+    meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+             'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+    
+    # 1. Tabela Detalhada de Itens
+    linhas_itens = []
+    for it in items:
+        sched = it.get('schedule', [0]*12)
+        qtd_total = sum(sched)
+        preco = it.get('unitPrice', 0)
+        custo_total = qtd_total * preco
+        
+        linha = {
+            'Código': it.get('code', ''),
+            'Descrição': it.get('desc', ''),
+            'Categoria': it.get('category', ''),
+            'Valor Unitário (R$)': preco
+        }
+        
+        for idx, m in enumerate(meses):
+            linha[f'{m} (Qtd)'] = sched[idx]
+            linha[f'{m} (R$)'] = sched[idx] * preco
+            
+        linha['Qtd Total Anual'] = qtd_total
+        linha['Custo Total Anual (R$)'] = custo_total
+        linhas_itens.append(linha)
+        
+    df_detalhado = pd.DataFrame(linhas_itens)
+    
+    # 2. Matriz Consolidada
+    categorias = [
+        'Materiais Elétricos', 'Manutenção Hidráulica', 'Materiais Mecânicos',
+        'Serviços', 'Lubrificantes/Gases', 'Conservação de Bens', 'Materiais de Consumo'
+    ]
+    
+    linhas_resumo = []
+    for cat in categorias:
+        row = {'Movimentação': cat}
+        soma_ano = 0
+        for idx, m in enumerate(meses):
+            soma_mes = sum(it.get('schedule', [0]*12)[idx] * it.get('unitPrice', 0) 
+                           for it in items if it.get('category') == cat)
+            row[m] = soma_mes
+            soma_ano += soma_mes
+        row['TOTAL ANUAL'] = soma_ano
+        linhas_resumo.append(row)
+        
+    df_consolidado = pd.DataFrame(linhas_resumo)
+    
+    nome_arquivo = 'Orcamento_Manutencao_Firebase.xlsx'
+    with pd.ExcelWriter(nome_arquivo, engine='openpyxl') as writer:
+        df_consolidado.to_excel(writer, sheet_name='Quadro Consolidado', index=False)
+        df_detalhado.to_excel(writer, sheet_name='Itens Programados', index=False)
+        
+    print(f"Sucesso! Planilha gerada: {nome_arquivo}")
+
+if __name__ == '__main__':
+    gerar_planilha_budget()
+`;
+
+      document.getElementById('pythonCodeBlock').textContent = pythonScript;
+      document.getElementById('pythonModal').classList.remove('hidden');
+    };
+
+    window.closePythonModal = function() {
+      document.getElementById('pythonModal').classList.add('hidden');
+    };
+
+    window.copyPythonCode = function() {
+      const code = document.getElementById('pythonCodeBlock').textContent;
+      const tempTextArea = document.createElement('textarea');
+      tempTextArea.value = code;
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempTextArea);
+      showToast('Código Python copiado para a área de transferência!');
+    };
+
+    window.showToast = function(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMsg').textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 3000);
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initChart();
+      initFirebaseSync();
+    });
+  </script>
+</body>
+</html>
