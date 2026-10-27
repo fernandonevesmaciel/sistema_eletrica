@@ -8,6 +8,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js para gráficos dinâmicos -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS Estilizado (xlsx-js-style) para gerar Excel elegante direto do navegador -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <!-- Font Awesome para ícones industriais -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
@@ -95,6 +97,9 @@
         </button>
         <button onclick="openBalanceModal()" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-violet-950 hover:bg-violet-900 text-violet-300 border border-violet-700/60 flex items-center gap-1.5 transition shadow-sm" title="Analisar picos e balancear gastos mensais">
           <i class="fa-solid fa-scale-balanced text-violet-400"></i> <span>Balancear Gastos</span>
+        </button>
+        <button onclick="exportStyledExcel()" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white shadow-sm flex items-center gap-1.5 transition" title="Baixar planilha .xlsx formatada para LibreOffice Calc / Excel com Totais Mensais">
+          <i class="fa-solid fa-file-excel"></i> <span>Planilha (.xlsx)</span>
         </button>
         <button onclick="openPythonModal()" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 flex items-center gap-1.5 transition">
           <i class="fa-brands fa-python text-sm"></i> <span class="hidden lg:inline">Script</span> Python
@@ -210,7 +215,7 @@
       <!-- Tabela Grade Anual -->
       <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
         <div class="p-3 bg-slate-800/40 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
-          <span><i class="fa-solid fa-bolt text-amber-400 mr-1"></i> Digite a quantidade no mês desejado. A sincronização no Firestore acontece em tempo real.</span>
+          <span><i class="fa-solid fa-bolt text-amber-400 mr-1"></i> Digite a quantidade no mês desejado. A linha final exibe o desembolso total de todos os produtos em cada mês.</span>
           <span id="filtered-count" class="font-mono font-medium text-slate-300">Carregando itens...</span>
         </div>
         <div class="overflow-x-auto">
@@ -243,6 +248,9 @@
             <tbody id="itemsTableBody" class="divide-y divide-slate-800/60 text-slate-200">
               <!-- Populado via Javascript -->
             </tbody>
+            <tfoot id="itemsTableFoot" class="bg-slate-950/95 border-t-2 border-sky-600/60 font-mono text-[11px]">
+              <!-- Rodapé com o Total Financeiro Mensal de todos os produtos listados -->
+            </tfoot>
           </table>
         </div>
       </div>
@@ -508,7 +516,6 @@
 
       <form id="itemForm" onsubmit="handleSaveItem(event)" class="p-6 space-y-4">
         <input type="hidden" id="form-item-id">
-        <!-- Guarda o ID do documento da coleção 'produtos' se o item foi encontrado -->
         <input type="hidden" id="form-estoque-doc-id">
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -635,8 +642,8 @@
         <div class="flex items-center gap-2">
           <i class="fa-brands fa-python text-emerald-400 text-xl"></i>
           <div>
-            <h3 class="text-base font-bold text-white">Script de Automação Python</h3>
-            <p class="text-xs text-slate-400">Exporta os dados atuais do Firestore diretamente para o formato Excel .xlsx</p>
+            <h3 class="text-base font-bold text-white">Script Python (Layout Executivo para LibreOffice / Excel)</h3>
+            <p class="text-xs text-slate-400">Gera planilha estilizada com cabeçalhos, bordas, zebra e linha de Total Geral de cada mês</p>
           </div>
         </div>
         <button onclick="closePythonModal()" class="text-slate-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
@@ -644,7 +651,7 @@
 
       <div class="p-6 space-y-4 text-xs">
         <p class="text-slate-300">
-          Você pode rodar este código no terminal do seu computador com os dados sincronizados em tempo real:
+          Rode este script Python para criar a planilha formatada com cores institucionais, larguras ajustadas para o LibreOffice Calc e somatório financeiro de cada mês:
         </p>
         <div class="relative">
           <pre id="pythonCodeBlock" class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-emerald-300 font-mono text-[11px] overflow-x-auto max-h-72 leading-relaxed">
@@ -712,7 +719,6 @@
       serverTimestamp 
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Configuração do Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyB_w4-z_onAEUf10ROfYCmvnm6Fkkp2sYo",
       authDomain: "eletrica-8c96e.firebaseapp.com",
@@ -722,7 +728,6 @@
       appId: "1:456815528430:web:4cf873dc8071c9a2bbe6ff"
     };
 
-    // Inicialização
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
@@ -731,6 +736,7 @@
     const ESTOQUE_COLLECTION = 'produtos';
 
     const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    const MONTHS_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const CATEGORIES = [
       'Materiais Elétricos',
       'Manutenção Hidráulica',
@@ -741,7 +747,6 @@
       'Materiais de Consumo'
     ];
 
-    // CATÁLOGO REAL EXTRAÍDO DA PLANILHA INDUSTRIAL
     const INDUSTRIAL_CATALOG = [
       { code: "18398", desc: "FONTE SITOP 10A 24V 6EP3334-3SB00-0AX0", category: "Materiais Elétricos", unitPrice: 530.00, schedule: [4, 4, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0] },
       { code: "1534386", desc: "LOGOPOWER 1.3A 6EP13311SH03 / 6EP3331 SIEMENS", category: "Materiais Elétricos", unitPrice: 389.00, schedule: [10, 10, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
@@ -961,7 +966,6 @@
       }
     };
 
-    // Aciona a busca automática conforme o usuário digita o código
     document.getElementById('form-item-code').addEventListener('input', (e) => {
       clearTimeout(codeSearchTimeout);
       const val = e.target.value.trim();
@@ -976,10 +980,11 @@
     });
 
     // ==========================================================
-    // RENDERIZAÇÃO DA GRADE ANUAL
+    // RENDERIZAÇÃO DA GRADE ANUAL + RODAPÉ COM TOTAL DE CADA MÊS
     // ==========================================================
     window.renderItemsTable = function() {
       const tbody = document.getElementById('itemsTableBody');
+      const tfoot = document.getElementById('itemsTableFoot');
       const search = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
       const filterCat = document.getElementById('categoryFilter')?.value || 'TODAS';
 
@@ -996,7 +1001,7 @@
       if (filtered.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="18" class="p-10 text-center text-slate-500">
+            <td colspan="19" class="p-10 text-center text-slate-500">
               <div class="flex flex-col items-center justify-center gap-2">
                 <i class="fa-solid fa-box-open text-3xl text-slate-600"></i>
                 <p class="font-medium text-slate-400">Nenhum item encontrado para a disciplina selecionada.</p>
@@ -1005,18 +1010,29 @@
             </td>
           </tr>
         `;
+        tfoot.innerHTML = '';
         return;
       }
 
+      const monthCostTotals = new Array(12).fill(0);
+      let grandTotalQty = 0;
+      let grandTotalCost = 0;
+
       tbody.innerHTML = filtered.map(item => {
         const totalQty = item.schedule.reduce((a, b) => a + Number(b || 0), 0);
-        const totalCost = totalQty * Number(item.unitPrice || 0);
+        const unitPrice = Number(item.unitPrice || 0);
+        const totalCost = totalQty * unitPrice;
+
+        grandTotalQty += totalQty;
+        grandTotalCost += totalCost;
 
         const monthCols = item.schedule.map((qty, mIdx) => {
+          const qNum = Number(qty || 0);
+          monthCostTotals[mIdx] += qNum * unitPrice;
           const isS2 = mIdx >= 6;
           return `
             <td class="p-1 text-center ${isS2 ? 'bg-indigo-950/20' : ''}">
-              <input type="number" min="0" value="${qty}" 
+              <input type="number" min="0" value="${qNum}" 
                 data-item-id="${item.id}"
                 data-month="${mIdx}"
                 class="qty-input w-12 text-center bg-slate-950/80 border border-slate-700/80 rounded px-1 py-1 text-xs text-slate-100 table-input font-mono focus:border-sky-400">
@@ -1058,6 +1074,23 @@
           </tr>
         `;
       }).join('');
+
+      // Renderiza linha de Total Mensal em R$ diretamente na Grade Anual
+      tfoot.innerHTML = `
+        <tr>
+          <td colspan="4" class="p-3 font-bold text-sky-400 sticky left-0 bg-slate-950 z-10 border-r border-slate-800 uppercase tracking-wider">
+            <i class="fa-solid fa-coins mr-1.5 text-amber-400"></i> Total Mensal dos Produtos (R$):
+          </td>
+          ${monthCostTotals.map((val, mIdx) => `
+            <td class="p-2 text-center font-bold whitespace-nowrap ${mIdx >= 6 ? 'text-indigo-300 bg-indigo-950/30' : 'text-amber-300'}">
+              ${formatBRL(val)}
+            </td>
+          `).join('')}
+          <td class="p-3 text-center font-bold text-white">${grandTotalQty}</td>
+          <td class="p-3 text-right font-extrabold text-emerald-400 text-xs">${formatBRL(grandTotalCost)}</td>
+          <td class="p-3"></td>
+        </tr>
+      `;
     };
 
     // ==========================================================
@@ -1241,7 +1274,6 @@
       }
     };
 
-    // Input direto de quantidade salvando no Firestore
     document.addEventListener('change', (e) => {
       if (e.target && e.target.classList.contains('qty-input')) {
         const itemId = e.target.getAttribute('data-item-id');
@@ -1286,7 +1318,6 @@
       }
     }
 
-    // Carga Automática do Catálogo Predefinido da Planilha
     window.importPredefinedCatalog = async function() {
       const btn = document.getElementById('btnImportCatalog');
       const origText = btn.innerHTML;
@@ -1473,7 +1504,6 @@
             const inp = document.getElementById(`month-${idx}`);
             if (inp) inp.value = q;
           });
-          // Busca o status do item no estoque
           window.consultarEstoquePorCodigo();
         }
       } else {
@@ -1522,7 +1552,6 @@
           updatedAt: serverTimestamp()
         };
 
-        // 1. Salva ou atualiza no Budget
         if (id) {
           const docRef = doc(db, ITEMS_COLLECTION, id);
           await updateDoc(docRef, payload);
@@ -1533,17 +1562,14 @@
           showToast(`Item ${code} salvo no Budget!`);
         }
 
-        // 2. Sincroniza com a coleção oficial de 'produtos' (Estoque) se selecionado
         if (syncEstoque && code) {
           try {
             if (estoqueDocId) {
-              // Já existe na base de estoque -> atualiza nome e valor
               await updateDoc(doc(db, ESTOQUE_COLLECTION, estoqueDocId), {
                 nome: desc.toUpperCase(),
                 valor: unitPrice
               });
             } else {
-              // Não existe na base de estoque -> verifica se foi criado ou cria um novo registro
               const checkQ = query(collection(db, ESTOQUE_COLLECTION), where("codigo", "==", code), limit(1));
               const checkSnap = await getDocs(checkQ);
 
@@ -1615,29 +1641,6 @@
         }
       );
     }
-
-    window.confirmClearDatabase = function() {
-      if (items.length === 0) {
-        showToast("A base de dados já está limpa!");
-        return;
-      }
-      showConfirmModal(
-        "Limpar Base de Dados?",
-        `Atenção: Todos os ${items.length} itens cadastrados no projeto Firebase 'eletrica-8c96e' serão removidos permanentemente.`,
-        async () => {
-          try {
-            const colRef = collection(db, ITEMS_COLLECTION);
-            const snapshot = await getDocs(colRef);
-            const promises = snapshot.docs.map(docSnap => deleteDoc(docSnap.ref));
-            await Promise.all(promises);
-            showToast("Base de dados limpa com sucesso!");
-          } catch (err) {
-            console.error("Erro ao limpar banco:", err);
-            showToast("Erro ao tentar limpar o banco.");
-          }
-        }
-      );
-    };
 
     window.switchTab = function(tab) {
       const btnItens = document.getElementById('tab-btn-itens');
@@ -1854,27 +1857,333 @@
       }
     };
 
+    // =========================================================================
+    // EXPORTAÇÃO DIRETA DE PLANILHA EXCEL (.XLSX) ELEGANTE PARA LIBREOFFICE CALC
+    // =========================================================================
+    window.exportStyledExcel = function() {
+      if (items.length === 0) {
+        showToast("Não há itens para exportar.");
+        return;
+      }
+      if (typeof XLSX === 'undefined') {
+        showToast("Biblioteca Excel ainda carregando. Tente novamente em instantes.");
+        return;
+      }
+
+      const wb = XLSX.utils.book_new();
+
+      const borderThin = {
+        top: { style: "thin", color: { rgb: "CBD5E1" } },
+        bottom: { style: "thin", color: { rgb: "CBD5E1" } },
+        left: { style: "thin", color: { rgb: "CBD5E1" } },
+        right: { style: "thin", color: { rgb: "CBD5E1" } }
+      };
+
+      const borderTotal = {
+        top: { style: "medium", color: { rgb: "0284C7" } },
+        bottom: { style: "double", color: { rgb: "0284C7" } },
+        left: { style: "thin", color: { rgb: "94A3B8" } },
+        right: { style: "thin", color: { rgb: "94A3B8" } }
+      };
+
+      const styleTitle = {
+        font: { name: "Arial", sz: 13, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "0F172A" } },
+        alignment: { horizontal: "left", vertical: "center" }
+      };
+
+      const styleHeader = {
+        font: { name: "Arial", sz: 10, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "0369A1" } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: borderThin
+      };
+
+      const styleHeaderS2 = {
+        font: { name: "Arial", sz: 10, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "3730A3" } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: borderThin
+      };
+
+      const styleTotalLabel = {
+        font: { name: "Arial", sz: 10, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "0F172A" } },
+        alignment: { horizontal: "left", vertical: "center" },
+        border: borderTotal
+      };
+
+      const styleTotalCurrency = {
+        font: { name: "Arial", sz: 10, bold: true, color: { rgb: "FDE047" } },
+        fill: { fgColor: { rgb: "0F172A" } },
+        alignment: { horizontal: "right", vertical: "center" },
+        numFmt: '"R$" #,##0.00',
+        border: borderTotal
+      };
+
+      const styleTotalQty = {
+        font: { name: "Arial", sz: 10, bold: true, color: { rgb: "38BDF8" } },
+        fill: { fgColor: { rgb: "0F172A" } },
+        alignment: { horizontal: "center", vertical: "center" },
+        numFmt: '#,##0',
+        border: borderTotal
+      };
+
+      // -------------------------------------------------------------
+      // ABA 1: QUADRO CONSOLIDADO POR CATEGORIA + TOTAL DE CADA MÊS
+      // -------------------------------------------------------------
+      const wsResumoData = [];
+      wsResumoData.push(["ORÇAMENTO ANUAL DE MANUTENÇÃO - QUADRO CONSOLIDADO MENSAL (R$)", ...new Array(13).fill("")]);
+      wsResumoData.push(["Disciplina / Categoria", ...MONTHS, "TOTAL ANUAL (R$)"]);
+
+      const grandMonthCosts = new Array(12).fill(0);
+      let grandAnnualCost = 0;
+
+      CATEGORIES.forEach((cat) => {
+        const catItems = items.filter(i => (i.category || '').toLowerCase().trim() === cat.toLowerCase().trim());
+        const mCosts = new Array(12).fill(0);
+        let catAnnual = 0;
+
+        catItems.forEach(it => {
+          const price = Number(it.unitPrice) || 0;
+          it.schedule.forEach((q, mIdx) => {
+            const c = (Number(q) || 0) * price;
+            mCosts[mIdx] += c;
+            catAnnual += c;
+            grandMonthCosts[mIdx] += c;
+            grandAnnualCost += c;
+          });
+        });
+
+        wsResumoData.push([cat, ...mCosts, catAnnual]);
+      });
+
+      // Linha de Total Geral de Cada Mês
+      wsResumoData.push(["TOTAL GERAL DO MÊS (R$)", ...grandMonthCosts, grandAnnualCost]);
+
+      const wsResumo = XLSX.utils.aoa_to_sheet(wsResumoData);
+      wsResumo['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 13 } }];
+      wsResumo['!cols'] = [
+        { wch: 28 },
+        ...MONTHS.map(() => ({ wch: 16 })),
+        { wch: 20 }
+      ];
+      wsResumo['!rows'] = [
+        { hpt: 28 },
+        { hpt: 24 },
+        ...CATEGORIES.map(() => ({ hpt: 20 })),
+        { hpt: 25 }
+      ];
+
+      // Estilizar células da Aba 1
+      const rangeResumo = XLSX.utils.decode_range(wsResumo['!ref']);
+      for (let R = rangeResumo.s.r; R <= rangeResumo.e.r; ++R) {
+        for (let C = rangeResumo.s.c; C <= rangeResumo.e.c; ++C) {
+          const addr = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!wsResumo[addr]) continue;
+
+          if (R === 0) {
+            wsResumo[addr].s = styleTitle;
+          } else if (R === 1) {
+            wsResumo[addr].s = (C >= 7 && C <= 12) ? styleHeaderS2 : styleHeader;
+          } else if (R === rangeResumo.e.r) {
+            wsResumo[addr].s = (C === 0) ? styleTotalLabel : styleTotalCurrency;
+          } else {
+            const isEven = (R % 2 === 0);
+            const bg = isEven ? "F8FAFC" : "FFFFFF";
+            wsResumo[addr].s = {
+              font: { name: "Arial", sz: 10, bold: (C === 0 || C === 13), color: { rgb: "1E293B" } },
+              fill: { fgColor: { rgb: C === 13 ? "E0F2FE" : bg } },
+              alignment: { horizontal: C === 0 ? "left" : "right", vertical: "center" },
+              numFmt: C > 0 ? '"R$" #,##0.00' : undefined,
+              border: borderThin
+            };
+          }
+        }
+      }
+
+      XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo Mensal (R$)");
+
+      // -------------------------------------------------------------
+      // ABA 2: TODOS OS PRODUTOS DETALHADOS + VALOR TOTAL DE CADA MÊS
+      // -------------------------------------------------------------
+      const wsDetData = [];
+      const headerRow = ["Código", "Descrição do Produto / Serviço", "Disciplina / Categoria", "Valor Unit. (R$)"];
+      MONTHS_SHORT.forEach(m => {
+        headerRow.push(`${m} (Qtd)`);
+        headerRow.push(`${m} (R$)`);
+      });
+      headerRow.push("Qtd Total Ano", "Custo Total Anual (R$)");
+
+      wsDetData.push(["RELAÇÃO COMPLETA DE ITENS DO ORÇAMENTO E DESEMBOLSO MENSAL POR PRODUTO", ...new Array(headerRow.length - 1).fill("")]);
+      wsDetData.push(headerRow);
+
+      const detMonthQtyTotals = new Array(12).fill(0);
+      const detMonthCostTotals = new Array(12).fill(0);
+      let detGrandQty = 0;
+      let detGrandCost = 0;
+
+      items.forEach(it => {
+        const price = Number(it.unitPrice) || 0;
+        const row = [it.code, it.desc, it.category, price];
+        let itemTotalQty = 0;
+
+        it.schedule.forEach((q, mIdx) => {
+          const qty = Number(q) || 0;
+          const cost = qty * price;
+          row.push(qty, cost);
+          itemTotalQty += qty;
+          detMonthQtyTotals[mIdx] += qty;
+          detMonthCostTotals[mIdx] += cost;
+        });
+
+        const itemTotalCost = itemTotalQty * price;
+        detGrandQty += itemTotalQty;
+        detGrandCost += itemTotalCost;
+
+        row.push(itemTotalQty, itemTotalCost);
+        wsDetData.push(row);
+      });
+
+      // Linha final: TOTAL DE TODOS OS PRODUTOS EM CADA MÊS
+      const footerRow = ["TOTAL", "VALOR TOTAL DE TODOS OS PRODUTOS NO MÊS ->", "", ""];
+      for (let mIdx = 0; mIdx < 12; mIdx++) {
+        footerRow.push(detMonthQtyTotals[mIdx]);
+        footerRow.push(detMonthCostTotals[mIdx]);
+      }
+      footerRow.push(detGrandQty, detGrandCost);
+      wsDetData.push(footerRow);
+
+      const wsDet = XLSX.utils.aoa_to_sheet(wsDetData);
+      wsDet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headerRow.length - 1 } }];
+
+      const detCols = [
+        { wch: 13 }, // Código
+        { wch: 44 }, // Descrição
+        { wch: 22 }, // Categoria
+        { wch: 15 }  // Unitário
+      ];
+      for (let m = 0; m < 12; m++) {
+        detCols.push({ wch: 10 }); // Qtd
+        detCols.push({ wch: 16 }); // R$ do Mês
+      }
+      detCols.push({ wch: 14 }, { wch: 20 });
+      wsDet['!cols'] = detCols;
+
+      wsDet['!rows'] = [
+        { hpt: 28 },
+        { hpt: 25 },
+        ...items.map(() => ({ hpt: 19 })),
+        { hpt: 26 }
+      ];
+
+      const rangeDet = XLSX.utils.decode_range(wsDet['!ref']);
+      for (let R = rangeDet.s.r; R <= rangeDet.e.r; ++R) {
+        for (let C = rangeDet.s.c; C <= rangeDet.e.c; ++C) {
+          const addr = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!wsDet[addr]) continue;
+
+          const isMonthCol = C >= 4 && C < 28;
+          const isCostCol = (C === 3) || (isMonthCol && (C - 4) % 2 === 1) || (C === 29);
+          const isQtyCol = (isMonthCol && (C - 4) % 2 === 0) || (C === 28);
+
+          if (R === 0) {
+            wsDet[addr].s = styleTitle;
+          } else if (R === 1) {
+            const isS2Col = C >= 16 && C < 28;
+            wsDet[addr].s = isS2Col ? styleHeaderS2 : styleHeader;
+          } else if (R === rangeDet.e.r) {
+            if (C <= 3) {
+              wsDet[addr].s = styleTotalLabel;
+            } else if (isQtyCol) {
+              wsDet[addr].s = styleTotalQty;
+            } else {
+              wsDet[addr].s = styleTotalCurrency;
+            }
+          } else {
+            const isEven = (R % 2 === 0);
+            let bg = isEven ? "F8FAFC" : "FFFFFF";
+            if (C === 29) bg = "DCFCE7"; // Destaque verde suave na coluna total anual
+
+            wsDet[addr].s = {
+              font: {
+                name: "Arial",
+                sz: 9,
+                bold: (C === 0 || C >= 28),
+                color: { rgb: C === 0 ? "0369A1" : "1E293B" }
+              },
+              fill: { fgColor: { rgb: bg } },
+              alignment: {
+                horizontal: C === 0 ? "center" : (C <= 2 ? "left" : (isQtyCol ? "center" : "right")),
+                vertical: "center"
+              },
+              numFmt: isCostCol ? '"R$" #,##0.00' : (isQtyCol ? '#,##0' : undefined),
+              border: borderThin
+            };
+          }
+        }
+      }
+
+      XLSX.utils.book_append_sheet(wb, wsDet, "Itens e Totais por Mês");
+
+      const fileName = `Orcamento_Manutencao_Elegante_${new Date().getFullYear()}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      showToast("Planilha .xlsx estilizada gerada com sucesso para o LibreOffice!");
+    };
+
     window.exportCSV = function() {
       if (items.length === 0) {
         showToast("Não há itens para exportar.");
         return;
       }
-      let csv = 'Código;Descrição;Categoria;Valor Unitário (R$);Jan Qtd;Fev Qtd;Mar Qtd;Abr Qtd;Mai Qtd;Jun Qtd;Jul Qtd;Ago Qtd;Set Qtd;Out Qtd;Nov Qtd;Dez Qtd;Qtd Total;Custo Total Anual (R$)\n';
+      let csv = 'Código;Descrição;Categoria;Valor Unitário (R$);Jan Qtd;Jan (R$);Fev Qtd;Fev (R$);Mar Qtd;Mar (R$);Abr Qtd;Abr (R$);Mai Qtd;Mai (R$);Jun Qtd;Jun (R$);Jul Qtd;Jul (R$);Ago Qtd;Ago (R$);Set Qtd;Set (R$);Out Qtd;Out (R$);Nov Qtd;Nov (R$);Dez Qtd;Dez (R$);Qtd Total;Custo Total Anual (R$)\n';
       
+      const monthQtySum = new Array(12).fill(0);
+      const monthCostSum = new Array(12).fill(0);
+      let grandQty = 0;
+      let grandCost = 0;
+
       items.forEach(it => {
+        const price = Number(it.unitPrice) || 0;
         const totalQty = it.schedule.reduce((a, b) => a + Number(b), 0);
-        const totalCost = (totalQty * it.unitPrice).toFixed(2);
+        const totalCost = totalQty * price;
+        grandQty += totalQty;
+        grandCost += totalCost;
+
+        const monthCells = [];
+        it.schedule.forEach((q, mIdx) => {
+          const qty = Number(q) || 0;
+          const cost = qty * price;
+          monthQtySum[mIdx] += qty;
+          monthCostSum[mIdx] += cost;
+          monthCells.push(qty, cost.toFixed(2).replace('.', ','));
+        });
+
         const row = [
           `"${it.code}"`,
           `"${it.desc.replace(/"/g, '""')}"`,
           `"${it.category}"`,
-          it.unitPrice.toFixed(2),
-          ...it.schedule,
+          price.toFixed(2).replace('.', ','),
+          ...monthCells,
           totalQty,
-          totalCost
+          totalCost.toFixed(2).replace('.', ',')
         ].join(';');
         csv += row + '\n';
       });
+
+      const totalCells = [];
+      for (let m = 0; m < 12; m++) {
+        totalCells.push(monthQtySum[m], monthCostSum[m].toFixed(2).replace('.', ','));
+      }
+      csv += [
+        '"TOTAL MENSAL"',
+        '"SOMA DE TODOS OS PRODUTOS NO MÊS"',
+        '""',
+        '""',
+        ...totalCells,
+        grandQty,
+        grandCost.toFixed(2).replace('.', ',')
+      ].join(';') + '\n';
 
       const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -1884,15 +2193,18 @@
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      showToast('Arquivo CSV baixado com sucesso!');
+      showToast('Arquivo CSV com Totais Mensais baixado!');
     };
 
     window.openPythonModal = function() {
       const jsonStr = JSON.stringify(items, null, 2);
       const pythonScript = `"""
-AUTOMAÇÃO DO ORÇAMENTO ANUAL DE MANUTENÇÃO (FIREBASE DATA)
+GERADOR DE PLANILHA EXECUTIVA DE ORÇAMENTO DE MANUTENÇÃO (OTIMIZADO PARA LIBREOFFICE CALC / EXCEL)
 Projeto: eletrica-8c96e | Coleção: budget_itens
-Gera a planilha Excel (.xlsx) com a Matriz Consolidada e Itens Detalhados.
+Inclui:
+  - Estilização completa (Cabeçalhos Azul Petróleo, Linhas Zebradas, Bordas Finas, Painéis Congelados)
+  - Linha de TOTAL GERAL DE CADA MÊS (Ex: Janeiro R$ 198.000,00) somando todos os produtos
+  - Largura automática de colunas para abrir sem "###" no LibreOffice Calc
 
 Requisitos:
     pip install pandas openpyxl
@@ -1900,9 +2212,119 @@ Requisitos:
 
 import json
 import pandas as pd
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 # Dados extraídos em tempo real do Firestore
 DADOS_JSON = '''${jsonStr}'''
+
+def estilizar_planilha_libreoffice(writer):
+    wb = writer.book
+    
+    # Paleta de Cores Executiva
+    fill_titulo = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+    fill_header_s1 = PatternFill(start_color="0369A1", end_color="0369A1", fill_type="solid")
+    fill_header_s2 = PatternFill(start_color="3730A3", end_color="3730A3", fill_type="solid")
+    fill_zebra = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+    fill_branco = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+    fill_total = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+    fill_coluna_anual = PatternFill(start_color="E0F2FE", end_color="E0F2FE", fill_type="solid")
+
+    font_header = Font(name="Arial", size=10, bold=True, color="FFFFFF")
+    font_dados = Font(name="Arial", size=9, bold=False, color="1E293B")
+    font_codigo = Font(name="Arial", size=9, bold=True, color="0369A1")
+    font_total_label = Font(name="Arial", size=10, bold=True, color="FFFFFF")
+    font_total_valor = Font(name="Arial", size=10, bold=True, color="FDE047")
+
+    borda_fina = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+    borda_total = Border(
+        left=Side(style='thin', color='64748B'),
+        right=Side(style='thin', color='64748B'),
+        top=Side(style='medium', color='0284C7'),
+        bottom=Side(style='double', color='0284C7')
+    )
+
+    formato_moeda = 'R$ #,##0.00'
+    formato_inteiro = '#,##0'
+
+    for nome_aba in wb.sheetnames:
+        ws = wb[nome_aba]
+        ws.views.sheetView[0].showGridLines = True
+        ws.freeze_panes = "B2" if nome_aba == "Quadro Consolidado" else "E2"
+
+        max_row = ws.max_row
+        max_col = ws.max_column
+
+        # Altura do cabeçalho e da linha de Total Mensal
+        ws.row_dimensions[1].height = 26
+        ws.row_dimensions[max_row].height = 25
+
+        for r in range(1, max_row + 1):
+            if 1 < r < max_row:
+                ws.row_dimensions[r].height = 20
+
+            for c in range(1, max_col + 1):
+                cell = ws.cell(row=r, column=c)
+                header_text = str(ws.cell(row=1, column=c).value or '')
+
+                # 1. Linha de Cabeçalho
+                if r == 1:
+                    cell.font = font_header
+                    cell.fill = fill_header_s2 if any(m in header_text for m in ['Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']) else fill_header_s1
+                    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    cell.border = borda_fina
+
+                # 2. Última Linha (TOTAL MENSAL DE TODOS OS PRODUTOS)
+                elif r == max_row:
+                    cell.fill = fill_total
+                    cell.border = borda_total
+                    if isinstance(cell.value, (int, float)):
+                        if '(Qtd)' in header_text or 'Qtd Total' in header_text:
+                            cell.font = Font(name="Arial", size=10, bold=True, color="38BDF8")
+                            cell.number_format = formato_inteiro
+                            cell.alignment = Alignment(horizontal="center", vertical="center")
+                        else:
+                            cell.font = font_total_valor
+                            cell.number_format = formato_moeda
+                            cell.alignment = Alignment(horizontal="right", vertical="center")
+                    else:
+                        cell.font = font_total_label
+                        cell.alignment = Alignment(horizontal="left", vertical="center")
+
+                # 3. Linhas de Dados
+                else:
+                    cell.fill = fill_coluna_anual if c == max_col else (fill_zebra if r % 2 == 0 else fill_branco)
+                    cell.border = borda_fina
+                    if isinstance(cell.value, (int, float)):
+                        if '(Qtd)' in header_text or 'Qtd Total' in header_text:
+                            cell.font = Font(name="Arial", size=9, bold=(c == max_col - 1), color="1E293B")
+                            cell.number_format = formato_inteiro
+                            cell.alignment = Alignment(horizontal="center", vertical="center")
+                        else:
+                            cell.font = Font(name="Arial", size=9, bold=(c == max_col), color="1E293B")
+                            cell.number_format = formato_moeda
+                            cell.alignment = Alignment(horizontal="right", vertical="center")
+                    else:
+                        cell.font = font_codigo if c == 1 else font_dados
+                        cell.alignment = Alignment(horizontal="center" if c == 1 and nome_aba != "Quadro Consolidado" else "left", vertical="center")
+
+        # Ajuste automático de largura das colunas com folga para o LibreOffice Calc
+        for col in ws.columns:
+            max_len = 0
+            col_letter = get_column_letter(col[0].column)
+            header_val = str(col[0].value or '')
+            for cell in col:
+                val_str = str(cell.value or '')
+                if isinstance(cell.value, float):
+                    val_str = f"R$ {cell.value:,.2f}"
+                if len(val_str) > max_len:
+                    max_len = len(val_str)
+            ws.column_dimensions[col_letter].width = max(max_len + 5, len(header_val) + 4, 13)
 
 def gerar_planilha_budget():
     items = json.loads(DADOS_JSON)
@@ -1913,14 +2335,22 @@ def gerar_planilha_budget():
     meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
              'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
     
-    # 1. Tabela Detalhada de Itens
+    # 1. Tabela Detalhada de Itens + Soma Geral por Mês
     linhas_itens = []
+    soma_qtd_mes = [0] * 12
+    soma_valor_mes = [0.0] * 12
+    soma_qtd_anual = 0
+    soma_valor_anual = 0.0
+
     for it in items:
         sched = it.get('schedule', [0]*12)
         qtd_total = sum(sched)
-        preco = it.get('unitPrice', 0)
+        preco = float(it.get('unitPrice', 0))
         custo_total = qtd_total * preco
         
+        soma_qtd_anual += qtd_total
+        soma_valor_anual += custo_total
+
         linha = {
             'Código': it.get('code', ''),
             'Descrição': it.get('desc', ''),
@@ -1929,16 +2359,34 @@ def gerar_planilha_budget():
         }
         
         for idx, m in enumerate(meses):
-            linha[f'{m} (Qtd)'] = sched[idx]
-            linha[f'{m} (R$)'] = sched[idx] * preco
+            q_mes = int(sched[idx])
+            v_mes = q_mes * preco
+            soma_qtd_mes[idx] += q_mes
+            soma_valor_mes[idx] += v_mes
+            linha[f'{m} (Qtd)'] = q_mes
+            linha[f'{m} (R$)'] = v_mes
             
         linha['Qtd Total Anual'] = qtd_total
         linha['Custo Total Anual (R$)'] = custo_total
         linhas_itens.append(linha)
+
+    # Adiciona a linha final com o TOTAL DE CADA MÊS (ex: Janeiro R$ 198.000,00)
+    linha_total_itens = {
+        'Código': 'TOTAL',
+        'Descrição': 'TOTAL MENSAL DE TODOS OS PRODUTOS ->',
+        'Categoria': '',
+        'Valor Unitário (R$)': ''
+    }
+    for idx, m in enumerate(meses):
+        linha_total_itens[f'{m} (Qtd)'] = soma_qtd_mes[idx]
+        linha_total_itens[f'{m} (R$)'] = soma_valor_mes[idx]
+    linha_total_itens['Qtd Total Anual'] = soma_qtd_anual
+    linha_total_itens['Custo Total Anual (R$)'] = soma_valor_anual
+    linhas_itens.append(linha_total_itens)
         
     df_detalhado = pd.DataFrame(linhas_itens)
     
-    # 2. Matriz Consolidada
+    # 2. Matriz Consolidada por Categoria + Total Geral de cada Mês
     categorias = [
         'Materiais Elétricos', 'Manutenção Hidráulica', 'Materiais Mecânicos',
         'Serviços', 'Lubrificantes/Gases', 'Conservação de Bens', 'Materiais de Consumo'
@@ -1946,24 +2394,32 @@ def gerar_planilha_budget():
     
     linhas_resumo = []
     for cat in categorias:
-        row = {'Movimentação': cat}
-        soma_ano = 0
+        row = {'Movimentação / Disciplina': cat}
+        soma_ano = 0.0
         for idx, m in enumerate(meses):
-            soma_mes = sum(it.get('schedule', [0]*12)[idx] * it.get('unitPrice', 0) 
+            soma_mes = sum(it.get('schedule', [0]*12)[idx] * float(it.get('unitPrice', 0)) 
                            for it in items if it.get('category') == cat)
             row[m] = soma_mes
             soma_ano += soma_mes
-        row['TOTAL ANUAL'] = soma_ano
+        row['TOTAL ANUAL (R$)'] = soma_ano
         linhas_resumo.append(row)
+
+    # Linha de Fechamento Mensal no Quadro Consolidado
+    row_total_geral = {'Movimentação / Disciplina': 'TOTAL GERAL DO MÊS (R$)'}
+    for idx, m in enumerate(meses):
+        row_total_geral[m] = soma_valor_mes[idx]
+    row_total_geral['TOTAL ANUAL (R$)'] = soma_valor_anual
+    linhas_resumo.append(row_total_geral)
         
     df_consolidado = pd.DataFrame(linhas_resumo)
     
-    nome_arquivo = 'Orcamento_Manutencao_Firebase.xlsx'
+    nome_arquivo = 'Orcamento_Manutencao_Elegante.xlsx'
     with pd.ExcelWriter(nome_arquivo, engine='openpyxl') as writer:
         df_consolidado.to_excel(writer, sheet_name='Quadro Consolidado', index=False)
         df_detalhado.to_excel(writer, sheet_name='Itens Programados', index=False)
+        estilizar_planilha_libreoffice(writer)
         
-    print(f"Sucesso! Planilha gerada: {nome_arquivo}")
+    print(f"Sucesso! Planilha executiva gerada para LibreOffice Calc: {nome_arquivo}")
 
 if __name__ == '__main__':
     gerar_planilha_budget()
