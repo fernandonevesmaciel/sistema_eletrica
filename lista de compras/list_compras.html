@@ -282,7 +282,7 @@
                     <div class="grid grid-cols-2 md:grid-cols-5 gap-2 mt-1">
                         <select id="semana-${p.id}" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-semibold outline-none focus:ring-1 focus:ring-blue-400" title="Semana do Mês">
                             <option value="">Semana (Op.)</option>
-                            <option value="1ª Semana">1ª Semana</option>
+                            <option value="automacao">automação</option>
                             <option value="2ª Semana">2ª Semana</option>
                             <option value="3ª Semana">3ª Semana</option>
                             <option value="4ª Semana">4ª Semana</option>
@@ -620,7 +620,7 @@
                         <div class="grid grid-cols-2 md:grid-cols-6 gap-2 mt-1">
                             <select id="edit-semana-${itemChave}" class="w-full p-2 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold outline-none focus:ring-1 focus:ring-blue-400">
                                 <option value="" ${!p.semanaMes ? 'selected' : ''}>Sem Semana</option>
-                                <option value="1ª Semana" ${p.semanaMes === '1ª Semana' ? 'selected' : ''}>1ª Semana</option>
+                                <option value="automacao" ${p.semanaMes === 'automacao' ? 'selected' : ''}>automação</option>
                                 <option value="2ª Semana" ${p.semanaMes === '2ª Semana' ? 'selected' : ''}>2ª Semana</option>
                                 <option value="3ª Semana" ${p.semanaMes === '3ª Semana' ? 'selected' : ''}>3ª Semana</option>
                                 <option value="4ª Semana" ${p.semanaMes === '4ª Semana' ? 'selected' : ''}>4ª Semana</option>

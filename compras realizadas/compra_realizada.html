@@ -97,7 +97,7 @@
                 <!-- FILTRO DE SEMANA -->
                 <select id="filtroSemana" class="filter-control font-semibold text-slate-700 text-xs">
                     <option value="todas">Todas as Semanas</option>
-                    <option value="1ª Semana">1ª Semana</option>
+                    <option value="automacao">automação</option>
                     <option value="2ª Semana">2ª Semana</option>
                     <option value="3ª Semana">3ª Semana</option>
                     <option value="4ª Semana">4ª Semana</option>
@@ -257,7 +257,7 @@
                                 <select onchange="window.atualizarSemana('${item.id}', this.value)"
                                     class="text-[10px] font-bold text-emerald-800 bg-transparent outline-none w-full text-center cursor-pointer">
                                     <option value="" ${!item.semanaMes ? 'selected' : ''}>-</option>
-                                    <option value="1ª Semana" ${item.semanaMes === '1ª Semana' ? 'selected' : ''}>1ª Sem.</option>
+                                    <option value="automacao" ${item.semanaMes === 'automacao' ? 'selected' : ''}>automação</option>
                                     <option value="2ª Semana" ${item.semanaMes === '2ª Semana' ? 'selected' : ''}>2ª Sem.</option>
                                     <option value="3ª Semana" ${item.semanaMes === '3ª Semana' ? 'selected' : ''}>3ª Sem.</option>
                                     <option value="4ª Semana" ${item.semanaMes === '4ª Semana' ? 'selected' : ''}>4ª Sem.</option>
