@@ -87,8 +87,8 @@
                 </div>
 
                 <!-- A SINCRONIZAÇÃO DE VALORES AGORA É AUTOMÁTICA -->
-                <span class="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-2 rounded-lg" title="Os preços são sincronizados automaticamente entre compras e cadastro de produtos">
-                    🔄 Valores sincronizados automaticamente
+                <span class="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-2 rounded-lg" title="Os preços e exclusões são sincronizados automaticamente entre compras e listas">
+                    🔄 Sincronização automática ativa
                 </span>
 
                 <div class="h-8 w-px bg-slate-200 hidden md:block"></div>
@@ -191,7 +191,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, doc, updateDoc, deleteDoc, query, orderBy, onSnapshot, where, getDocs, limit, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot, where, getDocs, limit, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         // CREDENCIAIS DA ELÉTRICA
         const firebaseConfig = {
@@ -200,7 +200,7 @@
             projectId: "eletrica-8c96e",
             storageBucket: "eletrica-8c96e.firebasestorage.app",
             messagingSenderId: "456815528430",
-            appId: "1:456815528430:web:4cf873dc8071c9a2bbe6ff"
+            appId: "1:223675812288:web:4cf873dc8071c9a2bbe6ff"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -211,8 +211,6 @@
         let registrosOriginais = [];
         let registrosFiltrados = [];
 
-        // O cadastro de produtos é a referência do preço atual.
-        // Assim, mudanças feitas no banco_dados.html também aparecem aqui em tempo real.
         let produtosPorId = new Map();
         let produtosPorCodigo = new Map();
 
@@ -242,7 +240,6 @@
             const codigo = chaveCodigo(item.codigo);
             if (!codigo || codigo === 'S/C') return null;
             const candidatos = produtosPorCodigo.get(codigo) || produtosPorCodigo.get(codigoSemZeros(codigo)) || [];
-            // Não presumir correspondência em caso de códigos duplicados.
             return candidatos.length === 1 ? candidatos[0] : null;
         };
 
@@ -261,7 +258,6 @@
             renderizarLista();
         };
 
-        // O onSnapshot de produtos reflete edições do estoque sem F5.
         onSnapshot(collection(db, 'produtos'), (snap) => {
             produtosPorId = new Map();
             produtosPorCodigo = new Map();
@@ -281,6 +277,10 @@
         });
 
         const extrairAnoMes = (item) => {
+            if (item.periodoId && item.periodoId.includes("-")) {
+                const [mes, ano] = item.periodoId.split("-");
+                return { ano, mes };
+            }
             const dataBase = item.dataDesejada || item.data || "";
             if (dataBase && dataBase.includes("-")) {
                 const partes = dataBase.split("-");
@@ -623,8 +623,6 @@
             renderizarLista();
         });
 
-        // Atualiza compra e cadastro de produtos SEM checkbox ou botão extra.
-        // A gravação ocorre quando o usuário confirma o campo (Enter ou perde o foco).
         window.atualizarValorTotal = async (id, inputEl) => {
             const item = registrosOriginais.find(r => r.id === id);
             if (!item) {
@@ -642,8 +640,6 @@
             const novoTotal = Number(valorDigitado.toFixed(2));
             const quantidade = Number(item.quantidade);
             const possuiQuantidade = Number.isFinite(quantidade) && quantidade > 0;
-            // 6 casas no unitário impedem perda relevante por arredondamento
-            // quando o total é dividido por quantidades como 3 ou 6.
             const novoUnitario = possuiQuantidade ? Number((novoTotal / quantidade).toFixed(6)) : novoTotal;
             const produtoNoCache = encontrarProduto(item);
             let refProduto = produtoNoCache ? doc(db, 'produtos', produtoNoCache.id) : null;
@@ -651,13 +647,11 @@
             inputEl.disabled = true;
             inputEl.title = 'Salvando valor no Firebase...';
             try {
-                // Confere o ID original mesmo quando o cache ainda não carregou.
                 if (!refProduto && item.produtoId) {
                     const candidato = doc(db, 'produtos', String(item.produtoId));
                     if ((await getDoc(candidato)).exists()) refProduto = candidato;
                 }
 
-                // Compras antigas podem não ter produtoId: procurar pelo código.
                 if (!refProduto && item.codigo) {
                     const original = chaveCodigo(item.codigo);
                     if (original && original !== 'S/C') {
@@ -675,8 +669,6 @@
                     }
                 }
 
-                // O lote impede atualização parcial entre a compra e o cadastro
-                // quando o produto é encontrado.
                 const lote = writeBatch(db);
                 lote.update(doc(db, 'compras', id), {
                     valorTotal: novoTotal,
@@ -694,7 +686,6 @@
                 inputEl.value = (parseValorInput(item.valorTotal) ?? 0).toFixed(2);
                 alert('Não foi possível salvar o novo valor no Firebase: ' + erro.message);
             } finally {
-                // A página acompanha novas alterações pelas assinaturas em tempo real.
                 inputEl.disabled = false;
                 inputEl.title = 'Altere o total e pressione Enter ou saia do campo para salvar automaticamente';
             }
@@ -750,10 +741,85 @@
             catch (e) { console.error("Erro ao atualizar OBS:", e); }
         };
 
+        // EXCLUI DO HISTÓRICO DE COMPRAS E REMOVE O ITEM CORRESPONDENTE DA LISTA MENSAL
         window.excluir = async (id) => {
-            if(confirm("Deseja eliminar permanentemente este registo?")) {
-                try { await deleteDoc(doc(db, "compras", id)); } 
-                catch (e) { console.error("Erro ao eliminar:", e); }
+            if (!confirm("Deseja eliminar permanentemente este registo?")) return;
+
+            const item = registrosOriginais.find(r => r.id === id);
+
+            try {
+                await deleteDoc(doc(db, "compras", id));
+
+                if (item) {
+                    const origem = (item.origem || "Elétrica").toLowerCase();
+                    const colecaoLista =
+                        origem.includes("civil") ? "listas_mensais_civil" :
+                        origem.includes("ferrament") ? "listas_mensais_ferramentas" :
+                        "listas_mensais";
+
+                    const dataRef = item.periodoId || item.dataDesejada || item.data || "";
+                    let periodoAlvo = item.periodoId || "";
+
+                    if (!periodoAlvo && dataRef.includes("-")) {
+                        const partes = dataRef.split("-");
+                        if (partes[0].length === 4) {
+                            periodoAlvo = `${partes[1]}-${partes[0]}`;
+                        } else if (partes.length >= 2) {
+                            periodoAlvo = `${partes[0]}-${partes[1]}`;
+                        }
+                    }
+
+                    const removerItemDeListaDoc = async (docId) => {
+                        const listaRef = doc(db, colecaoLista, docId);
+                        const listaSnap = await getDoc(listaRef);
+                        if (!listaSnap.exists()) return false;
+
+                        const dadosLista = listaSnap.data();
+                        const itensAtuais = Array.isArray(dadosLista.itens) ? dadosLista.itens : [];
+
+                        let removiu = false;
+                        const itensFiltrados = itensAtuais.filter(it => {
+                            if (removiu) return true;
+                            const bateCompraId = it.compraId && it.compraId === id;
+                            const bateItemId = item.itemId && (it.itemId === item.itemId || it.id === item.itemId);
+                            const bateDados = !it.compraId && !item.itemId &&
+                                it.nome === item.nome &&
+                                String(it.codigo || "S/C") === String(item.codigo || "S/C") &&
+                                Number(it.quantidade) === Number(item.quantidade) &&
+                                String(it.local || "Geral") === String(item.local || "Geral");
+
+                            if (bateCompraId || bateItemId || bateDados) {
+                                removiu = true;
+                                return false;
+                            }
+                            return true;
+                        });
+
+                        if (removiu) {
+                            await setDoc(
+                                listaRef,
+                                { itens: itensFiltrados, meta: dadosLista.meta ?? 0 },
+                                { merge: true }
+                            );
+                        }
+                        return removiu;
+                    };
+
+                    let encontrou = false;
+                    if (periodoAlvo) {
+                        encontrou = await removerItemDeListaDoc(periodoAlvo);
+                    }
+
+                    if (!encontrou) {
+                        const todasListas = await getDocs(collection(db, colecaoLista));
+                        for (const docLista of todasListas.docs) {
+                            const removeuAqui = await removerItemDeListaDoc(docLista.id);
+                            if (removeuAqui) break;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Erro ao eliminar e sincronizar com a lista:", e);
             }
         };
     </script>

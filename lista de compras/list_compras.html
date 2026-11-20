@@ -161,7 +161,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, addDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, getDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         // ================= CONFIGURAÇÕES FIREBASE =================
@@ -183,12 +183,10 @@
             measurementId: "G-G78PR55F9F"
         };
 
-        // Inicializa o app primário (Elétrica)
         const app = initializeApp(firebaseConfigEletrica);
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        // Inicializa o app secundário (Mecânica)
         const appMecanica = initializeApp(firebaseConfigMecanica, "appMecanica");
         const dbMecanica = getFirestore(appMecanica);
 
@@ -380,25 +378,13 @@
             const codNimbi = document.getElementById(`nimbi-${id}`).value || "";
             const codMov = document.getElementById(`movimentacao-${id}`).value || "";
             const valorUnit = parseFloat(String(prod.valor).replace(',', '.'));
+            const itemIdGerado = Date.now() + "_" + Math.random().toString(36).substring(2, 7);
 
-            const novoItem = {
-                ...prod,
+            // SALVA NO HISTÓRICO GLOBAL DE COMPRAS E VINCULA PELO ID
+            const docCompraRef = await addDoc(collection(db, "compras"), {
                 produtoId: prod.id,
-                itemId: Date.now() + "_" + Math.random().toString(36).substring(2, 7),
-                quantidade: qtd,
-                semanaMes: semana,
-                dataDesejada: dataDes,
-                local: localUso,
-                codigoNimbi: codNimbi,
-                codigoMovimentacao: codMov
-            };
-
-            const novaLista = [...carrinhoAtual, novoItem];
-            await setDoc(doc(db, "listas_mensais", periodoId), { itens: novaLista, meta: valorLimiteDesteMes }, { merge: true });
-
-            // SALVA NO HISTÓRICO GLOBAL DE COMPRAS
-            await addDoc(collection(db, "compras"), {
-                produtoId: prod.id,
+                itemId: itemIdGerado,
+                periodoId: periodoId,
                 nome: prod.nome,
                 codigo: prod.codigo || "S/C",
                 codigoNimbi: codNimbi,
@@ -416,13 +402,58 @@
                 dataCriacao: new Date()
             });
 
+            const novoItem = {
+                ...prod,
+                produtoId: prod.id,
+                itemId: itemIdGerado,
+                compraId: docCompraRef.id,
+                periodoId: periodoId,
+                quantidade: qtd,
+                semanaMes: semana,
+                dataDesejada: dataDes,
+                local: localUso,
+                codigoNimbi: codNimbi,
+                codigoMovimentacao: codMov
+            };
+
+            const novaLista = [...carrinhoAtual, novoItem];
+            await setDoc(doc(db, "listas_mensais", periodoId), { itens: novaLista, meta: valorLimiteDesteMes }, { merge: true });
+
             const elNimbi = document.getElementById(`nimbi-${id}`);
             if (elNimbi) elNimbi.value = "";
         };
 
+        // REMOVE DA LISTA MENSAL E SINCRONIZA EXCLUINDO DO HISTÓRICO DE COMPRAS
         window.remover = async (itemId) => {
+            const itemRemovido = carrinhoAtual.find(i => (i.itemId || i.id) === itemId);
             const novaLista = carrinhoAtual.filter(i => (i.itemId || i.id) !== itemId);
+
             await setDoc(doc(db, "listas_mensais", periodoId), { itens: novaLista, meta: valorLimiteDesteMes }, { merge: true });
+
+            if (!itemRemovido) return;
+
+            try {
+                if (itemRemovido.compraId) {
+                    await deleteDoc(doc(db, "compras", itemRemovido.compraId));
+                } else {
+                    const snapCompras = await getDocs(query(collection(db, "compras"), where("origem", "==", "Elétrica")));
+                    const matchDoc = snapCompras.docs.find(d => {
+                        const data = d.data();
+                        const mesmoPeriodo = !data.periodoId || data.periodoId === periodoId;
+                        const mesmoItem = (data.itemId && data.itemId === itemId) ||
+                            (data.nome === itemRemovido.nome &&
+                             String(data.codigo || "S/C") === String(itemRemovido.codigo || "S/C") &&
+                             Number(data.quantidade) === Number(itemRemovido.quantidade) &&
+                             String(data.local || "Geral") === String(itemRemovido.local || "Geral"));
+                        return mesmoPeriodo && mesmoItem;
+                    });
+                    if (matchDoc) {
+                        await deleteDoc(doc(db, "compras", matchDoc.id));
+                    }
+                }
+            } catch (erro) {
+                console.error("Erro ao sincronizar exclusão no histórico de compras:", erro);
+            }
         };
 
         window.editar = (itemId) => {
@@ -536,7 +567,7 @@
 
                 docPdf.setFontSize(11);
                 docPdf.setFont(undefined, 'bold');
-                docPdf.setTextColor(59, 130, 246); // Azul
+                docPdf.setTextColor(59, 130, 246);
                 docPdf.text(`Cód Nimbi: ${nimbi}`, 14, currentY);
                 docPdf.setTextColor(0, 0, 0);
                 currentY += 5;

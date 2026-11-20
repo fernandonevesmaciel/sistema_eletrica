@@ -162,7 +162,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, getDocs, doc, setDoc, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, setDoc, addDoc, deleteDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         // ================= MESMO BANCO DA ELÉTRICA =================
@@ -303,22 +303,12 @@
             const codNimbi = document.getElementById(`nimbi-${id}`).value || "";
             const codMov = document.getElementById(`movimentacao-${id}`).value || "";
             const valorUnit = parseFloat(String(prod.valor).replace(',', '.'));
+            const itemIdGerado = Date.now() + "_" + Math.random().toString(36).substring(2, 7);
 
-            const novoItem = {
-                ...prod,
-                itemId: Date.now() + "_" + Math.random().toString(36).substring(2, 7),
-                quantidade: qtd,
-                semanaMes: semana,
-                dataDesejada: dataDes,
-                local: localUso,
-                codigoNimbi: codNimbi,
-                codigoMovimentacao: codMov
-            };
-
-            const novaLista = [...carrinhoAtual, novoItem];
-            await setDoc(doc(db, "listas_mensais_civil", periodoId), { itens: novaLista, meta: valorLimiteDesteMes }, { merge: true });
-
-            await addDoc(collection(db, "compras"), {
+            const docCompraRef = await addDoc(collection(db, "compras"), {
+                produtoId: prod.id,
+                itemId: itemIdGerado,
+                periodoId: periodoId,
                 nome: prod.nome,
                 codigo: prod.codigo || "S/C",
                 codigoNimbi: codNimbi,
@@ -336,13 +326,57 @@
                 dataCriacao: new Date()
             });
 
+            const novoItem = {
+                ...prod,
+                produtoId: prod.id,
+                itemId: itemIdGerado,
+                compraId: docCompraRef.id,
+                periodoId: periodoId,
+                quantidade: qtd,
+                semanaMes: semana,
+                dataDesejada: dataDes,
+                local: localUso,
+                codigoNimbi: codNimbi,
+                codigoMovimentacao: codMov
+            };
+
+            const novaLista = [...carrinhoAtual, novoItem];
+            await setDoc(doc(db, "listas_mensais_civil", periodoId), { itens: novaLista, meta: valorLimiteDesteMes }, { merge: true });
+
             const elNimbi = document.getElementById(`nimbi-${id}`);
             if (elNimbi) elNimbi.value = "";
         };
 
         window.remover = async (itemId) => {
+            const itemRemovido = carrinhoAtual.find(i => (i.itemId || i.id) === itemId);
             const novaLista = carrinhoAtual.filter(i => (i.itemId || i.id) !== itemId);
+
             await setDoc(doc(db, "listas_mensais_civil", periodoId), { itens: novaLista, meta: valorLimiteDesteMes }, { merge: true });
+
+            if (!itemRemovido) return;
+
+            try {
+                if (itemRemovido.compraId) {
+                    await deleteDoc(doc(db, "compras", itemRemovido.compraId));
+                } else {
+                    const snapCompras = await getDocs(query(collection(db, "compras"), where("origem", "==", "Civil")));
+                    const matchDoc = snapCompras.docs.find(d => {
+                        const data = d.data();
+                        const mesmoPeriodo = !data.periodoId || data.periodoId === periodoId;
+                        const mesmoItem = (data.itemId && data.itemId === itemId) ||
+                            (data.nome === itemRemovido.nome &&
+                             String(data.codigo || "S/C") === String(itemRemovido.codigo || "S/C") &&
+                             Number(data.quantidade) === Number(itemRemovido.quantidade) &&
+                             String(data.local || "Geral") === String(itemRemovido.local || "Geral"));
+                        return mesmoPeriodo && mesmoItem;
+                    });
+                    if (matchDoc) {
+                        await deleteDoc(doc(db, "compras", matchDoc.id));
+                    }
+                }
+            } catch (erro) {
+                console.error("Erro ao sincronizar exclusão no histórico de compras (Civil):", erro);
+            }
         };
 
         window.editar = (itemId) => { editandoItemId = itemId; renderizarCarrinho(); };
@@ -407,7 +441,7 @@
 
                 docPdf.setFontSize(11);
                 docPdf.setFont(undefined, 'bold');
-                docPdf.setTextColor(245, 158, 11); // Âmbar
+                docPdf.setTextColor(245, 158, 11);
                 docPdf.text(`Cód Nimbi: ${nimbi}`, 14, currentY);
                 docPdf.setTextColor(0, 0, 0);
                 currentY += 5;
